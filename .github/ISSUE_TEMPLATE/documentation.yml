@@ -1,0 +1,37 @@
+name: 📖 ドキュメント
+description: README / Wiki / コメント等の修正・追加
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: input
+    id: target
+    attributes:
+      label: 対象ドキュメント
+      description: ファイルパス・URL・該当セクション
+      placeholder: 例) README.md の「クイックスタート 手順 5」, Wiki: 21-Deployment
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: 問題・改善したい点
+      description: 既存の記述で誤っている / 抜けている / 分かりにくい箇所
+      placeholder: 例) schema.sql 単体だと traffic_pools テーブルが作られないが、その旨が書かれていない
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 改善案
+      description: 修正後の文面案や追加したい記述
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 備考
+    validations:
+      required: false
