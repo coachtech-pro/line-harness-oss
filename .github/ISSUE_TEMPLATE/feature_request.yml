@@ -8,6 +8,15 @@ body:
       value: |
         解決策や実装方法は書かなくて構いません。**何が課題で、どうなっていて欲しいか**を共有してください。
 
+  - type: input
+    id: estimate
+    attributes:
+      label: 想定工数
+      description: 実装にかかりそうな工数の見積もり (必須)
+      placeholder: 例) 5h, 8h, 14h
+    validations:
+      required: true
+
   - type: textarea
     id: summary
     attributes:

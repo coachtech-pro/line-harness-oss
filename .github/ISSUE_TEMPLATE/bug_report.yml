@@ -8,6 +8,15 @@ body:
       value: |
         ご報告ありがとうございます。再現に必要な情報を教えてください。
 
+  - type: input
+    id: estimate
+    attributes:
+      label: 想定工数
+      description: 修正にかかりそうな工数の見積もり (必須)
+      placeholder: 例) 5h, 8h, 14h
+    validations:
+      required: true
+
   - type: textarea
     id: summary
     attributes:

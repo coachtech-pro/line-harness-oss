@@ -4,6 +4,15 @@ title: "[Docs] "
 labels: ["documentation"]
 body:
   - type: input
+    id: estimate
+    attributes:
+      label: 想定工数
+      description: 修正にかかりそうな工数の見積もり (必須)
+      placeholder: 例) 5h, 8h, 14h
+    validations:
+      required: true
+
+  - type: input
     id: target
     attributes:
       label: 対象ドキュメント
