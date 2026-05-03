@@ -105,6 +105,8 @@ Claude Code ──→ Workers API ──→ D1
 
 ## クイックスタート
 
+> ⚠️ wrangler の設定ファイルは `apps/worker/wrangler.toml` にあります。リポジトリルートから wrangler を実行する場合は `-c apps/worker/wrangler.toml` を付けてください (本書のコマンドは原則ルート実行を想定)。
+
 ### 前提条件
 
 - Node.js 20+, pnpm 9+
@@ -121,56 +123,138 @@ pnpm install
 
 ### 2. LINE チャネル設定
 
-[LINE Developers Console](https://developers.line.biz/console/) で **2つのチャネル** を作成:
+[LINE Developers Console](https://developers.line.biz/console/) で **同じプロバイダー配下** に 2 つのチャネルを作成:
 
 1. **Messaging API チャネル** — メッセージ送受信用
-2. **LINE Login チャネル** — UUID 自動取得用（**必須**）
+2. **LINE Login チャネル** — UUID 自動取得用 (**必須**)
 
 > ⚠️ LINE Login チャネルがないと `/auth/line` 経由の友だち追加で UUID が取れません。
 > UUID がないとマルチアカウント統合・流入追跡が機能しません。
+>
+> ⚠️ LIFF の Bot link feature を使うには、Login チャネルと Messaging API チャネルが**同一プロバイダー配下**にある必要があります。
 
-### 3. D1 データベース作成
+メモしておく値:
+- Messaging API: **チャネル ID** / **チャネルシークレット** / **チャネルアクセストークン (長期)**
+- LINE Login: **チャネル ID** / **チャネルシークレット**
+
+### 3. Cloudflare アカウントの初期化
+
+初回のみダッシュボードでの設定が必要です:
+
+1. **Cloudflare アカウント ID を確認**
+   ```bash
+   npx wrangler login        # 未ログインなら最初に実行
+   npx wrangler whoami       # 表示された Account ID をメモ
+   ```
+2. **R2 を有効化** — ダッシュボード ([https://dash.cloudflare.com](https://dash.cloudflare.com) → R2) で「Purchase R2 / Enable R2」をクリックして利用規約に同意 (無料枠あり)。R2 が有効でないと初回 deploy が失敗します。
+3. **workers.dev サブドメインを登録** — ダッシュボード → Workers → onboarding 画面で好きなサブドメイン名を入力 (例: `your-name`)。これで Worker が `*.your-name.workers.dev` で公開可能になります。
+
+### 4. wrangler.toml の編集
+
+`apps/worker/wrangler.toml` を開き、プレースホルダーを実値に置き換えます。
+
+```toml
+account_id = "YOUR_DEV_ACCOUNT_ID"           # ← 手順3でメモした Account ID
+
+[[d1_databases]]
+binding = "DB"                                # ← コードはこの名前を期待 (変更しない)
+database_name = "line-crm"
+database_id = "YOUR_D1_DATABASE_ID"           # ← 次手順で取得して書き戻す
+```
+
+### 5. D1 データベース作成 + スキーマ適用
 
 ```bash
+# 1) リモート D1 を作成 → 出力された database_id を wrangler.toml に書き戻す
 npx wrangler d1 create line-crm
-# → 出力される database_id を apps/worker/wrangler.toml に記入
 
-npx wrangler d1 execute line-crm --file=packages/db/schema.sql
+# 2) スキーマと全マイグレーションをリモート D1 へ流す
+#    (schema.sql 単体では不足するテーブルがあるため migrations もまとめて適用)
+pnpm db:migrate
 ```
 
-### 4. シークレット設定
+> ℹ️ マイグレーション実行時に `duplicate column name` のエラーが出る箇所がありますが、`schema.sql` に既に含まれている列を ALTER しようとしただけなので無視して構いません。`no such table` 等のエラーが出ない限り問題ありません。
+
+### 6. シークレット設定
 
 ```bash
-npx wrangler secret put LINE_CHANNEL_SECRET
-npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
-npx wrangler secret put API_KEY
-npx wrangler secret put LINE_LOGIN_CHANNEL_ID
-npx wrangler secret put LINE_LOGIN_CHANNEL_SECRET
+cd apps/worker
+
+npx wrangler secret put API_KEY                       # 任意の長いランダム文字列 (例: openssl rand -hex 32)
+npx wrangler secret put LINE_CHANNEL_ID               # Messaging API チャネル ID
+npx wrangler secret put LINE_CHANNEL_SECRET           # Messaging API チャネルシークレット
+npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN     # Messaging API 長期アクセストークン
+npx wrangler secret put LINE_LOGIN_CHANNEL_ID         # LINE Login チャネル ID
+npx wrangler secret put LINE_LOGIN_CHANNEL_SECRET     # LINE Login チャネルシークレット
+npx wrangler secret put WORKER_URL                    # 例: https://line-harness.your-name.workers.dev
+npx wrangler secret put LIFF_URL                      # 例: https://liff.line.me/2009961677-XXXXXXXX (手順 7 で発行)
+
+cd ../..
 ```
 
-### 5. デプロイ
+> 💡 上記は最小構成です。Stripe や IG Harness 連携を使う場合のみ `STRIPE_WEBHOOK_SECRET`, `X_HARNESS_URL`, `IG_HARNESS_URL` 等を追加してください。
+
+### 7. LIFF アプリ作成
+
+LINE Developers Console → 手順2の **LINE Login チャネル** → 「LIFF」タブ → 「追加」:
+
+- **エンドポイント URL**: `https://line-harness.your-name.workers.dev/` (Worker のルート。`/liff` のような独自パスは付けない)
+- **サイズ**: Full
+- **Scope**: `profile`, `openid`
+- **Bot link feature**: `On (Aggressive)` に設定 → 紐付け先に Messaging API チャネルを選択
+
+作成後に表示される **LIFF URL** (例: `https://liff.line.me/2009961677-XXXXXXXX`) と **LIFF ID** (URL の末尾部分) をメモします。
+
+> ⚠️ Bot link を設定しないと、LIFF 起動時に `There is no login bot linked to this channel.` エラーになります。同一プロバイダー配下に Messaging API チャネルが存在することが前提です。
+>
+> ⚠️ メモした **LIFF URL** は手順6の `LIFF_URL` シークレットに、**LIFF ID** は次手順の `VITE_LIFF_ID` に使います。
+
+### 8. デプロイ
+
+LIFF ID をビルド時環境変数として埋め込んでデプロイします (LIFF SDK が URL クエリを書き換える仕様により、`?liffId=` 渡しは利用不可)。
 
 ```bash
-pnpm deploy:worker
-# → https://your-worker.your-subdomain.workers.dev
+VITE_LIFF_ID=2009961677-XXXXXXXX pnpm deploy:worker
+# → https://line-harness.your-name.workers.dev
 ```
 
-### 6. LINE Webhook 設定
+### 9. LINE Webhook 設定
 
-LINE Developers Console → Messaging API → Webhook URL:
-```
-https://your-worker.your-subdomain.workers.dev/webhook
-```
+LINE Developers Console → Messaging API チャネル → Webhook 設定:
 
-### 7. 動作確認
+- **Webhook URL**: `https://line-harness.your-name.workers.dev/webhook`
+- **Webhook の利用**: ON
+- 「検証」ボタンで 200 が返れば疎通 OK
+- **応答メッセージ** / **あいさつメッセージ**: OFF 推奨 (Worker 側で制御するため)
+
+### 10. 管理画面の起動
+
+ローカル開発で起動する場合:
 
 ```bash
-# 友だち追加URL（これを LP や SNS に貼る）
-https://your-worker.your-subdomain.workers.dev/auth/line?ref=test
+echo "NEXT_PUBLIC_API_URL=https://line-harness.your-name.workers.dev" > apps/web/.env.local
+pnpm dev:web
+# → http://localhost:3001
+```
+
+ログイン時は手順6で登録した `API_KEY` の値を入力します。
+
+### 11. 動作確認
+
+```bash
+# 友だち追加URL (これを LP や SNS に貼る)
+https://line-harness.your-name.workers.dev/auth/line?ref=test
 
 # API 疎通確認
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  https://your-worker.your-subdomain.workers.dev/api/friends/count
+  https://line-harness.your-name.workers.dev/api/friends/count
+```
+
+LINE 公式アカウントを友だち追加してメッセージを送り、D1 に記録されているか確認:
+
+```bash
+npx wrangler d1 execute line-crm -c apps/worker/wrangler.toml --remote \
+  --command "SELECT id, type, text, created_at FROM messages ORDER BY created_at DESC LIMIT 5"
 ```
 
 ---
@@ -255,10 +339,11 @@ L社: 月額 21,780円〜。LINE Harness: **0円〜。**
 
 ```bash
 pnpm dev:worker    # → http://localhost:8787
-pnpm dev:web       # → http://localhost:3001
+pnpm dev:web       # → http://localhost:3001 (apps/web/.env.local が必要)
+
+# ローカル D1 にスキーマ + 全マイグレーションを適用
 pnpm db:migrate:local
 ```
-
 ---
 
 ## コントリビュート
