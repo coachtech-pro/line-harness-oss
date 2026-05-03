@@ -1,66 +1,42 @@
 name: ✨ 機能要望
-description: 新機能・改善の提案
+description: 新機能・改善の提案 (課題と期待動作のみ。解決策の議論は Issue 上で行う)
 title: "[Feature] "
 labels: ["enhancement"]
 body:
-  - type: textarea
-    id: problem
+  - type: markdown
     attributes:
-      label: 解決したい課題
-      description: どんなユースケース・問題があるか
-      placeholder: 例) マルチアカウント運用時に管理画面で LIFF ID を入力できず、SQL を直接叩く必要がある
+      value: |
+        解決策や実装方法は書かなくて構いません。**何が課題で、どうなっていて欲しいか**を共有してください。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: 1〜2 行でまとめた要望
+      placeholder: 例) 友だち追加時にオペレーターチャット一覧へ自動表示してほしい
     validations:
       required: true
 
   - type: textarea
-    id: proposal
+    id: background
     attributes:
-      label: 提案する解決方法
-      description: 具体的な実装イメージや UI / API の案
+      label: 背景 / ユースケース
+      description: なぜ必要か、どんな運用で困っているか
     validations:
       required: true
 
   - type: textarea
-    id: alternatives
+    id: expected
     attributes:
-      label: 代替案 / 検討した他の方法
-    validations:
-      required: false
-
-  - type: dropdown
-    id: area
-    attributes:
-      label: 影響範囲
-      multiple: true
-      options:
-        - Worker (apps/worker)
-        - 管理画面 (apps/web)
-        - LIFF (フロントエンド)
-        - DB / マイグレーション (packages/db)
-        - SDK (packages/sdk, packages/line-sdk)
-        - MCP サーバー (packages/mcp-server)
-        - ドキュメント / README
-        - CI / GitHub Actions
-        - その他
+      label: 期待する動作
+      description: 機能が実現された時、ユーザーから見てどう動くか
     validations:
       required: true
-
-  - type: dropdown
-    id: priority
-    attributes:
-      label: 優先度の主観
-      description: 提案者から見た緊急度の感覚 (運営側が最終判断)
-      options:
-        - low — あったら嬉しい
-        - medium — 近いうちに欲しい
-        - high — 業務クリティカル
-    validations:
-      required: false
 
   - type: textarea
     id: notes
     attributes:
       label: 備考
-      description: 関連 Issue・PR、外部リンク、参考実装など
+      description: 関連 Issue・スクリーンショット・参考リンクなど
     validations:
       required: false
