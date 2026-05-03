@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { Tag } from '@line-crm/shared'
 import type { FriendWithTags } from '@/lib/api'
 import { api } from '@/lib/api'
@@ -106,9 +106,8 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
             )
 
             return (
-              <>
+              <Fragment key={friend.id}>
                 <tr
-                  key={friend.id}
                   className="hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => toggleExpand(friend.id)}
                 >
@@ -182,7 +181,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
 
                 {/* Expanded detail row */}
                 {isExpanded && (
-                  <tr key={`${friend.id}-detail`} className="bg-gray-50">
+                  <tr className="bg-gray-50">
                     <td colSpan={5} className="px-6 py-4">
                       <div className="space-y-3">
                         <div>
@@ -248,7 +247,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             )
           })}
         </tbody>

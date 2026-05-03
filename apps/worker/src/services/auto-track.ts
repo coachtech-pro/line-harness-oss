@@ -28,19 +28,25 @@ const SKIP_PATTERNS = [
   /\/t\/[0-9a-f-]{36}/,       // already a tracking link
   /liff\.line\.me/,            // LIFF URLs
   /line\.me\/R\//,             // LINE deep links
-  /your-worker-name/,           // our own worker
 ];
 
-function shouldSkip(url: string): boolean {
-  return SKIP_PATTERNS.some((p) => p.test(url));
+function shouldSkip(url: string, workerUrl: string): boolean {
+  if (SKIP_PATTERNS.some((p) => p.test(url))) return true;
+  try {
+    const ourHost = new URL(workerUrl).hostname;
+    if (new URL(url).hostname === ourHost) return true;
+  } catch {
+    // ignore parse errors
+  }
+  return false;
 }
 
 /** Extract trackable URLs from content string */
-function extractUrls(content: string): Set<string> {
+function extractUrls(content: string, workerUrl: string): Set<string> {
   const urls = new Set<string>();
   for (const match of content.matchAll(URL_REGEX)) {
     const url = match[0].replace(/[.,;:!?)]+$/, '');
-    if (!shouldSkip(url)) urls.add(url);
+    if (!shouldSkip(url, workerUrl)) urls.add(url);
   }
   return urls;
 }
@@ -145,7 +151,7 @@ export async function autoTrackContent(
 ): Promise<AutoTrackResult> {
   if (messageType === 'image') return { messageType, content };
 
-  const urls = extractUrls(content);
+  const urls = extractUrls(content, workerUrl);
   if (urls.size === 0) return { messageType, content };
 
   const urlMap = await createTrackingMap(db, urls, workerUrl);
