@@ -101,12 +101,18 @@ database_id = "ここに貼り付け"
 
 ### スキーマ適用
 
+D1 のスキーマは `packages/db/migrations/` に migration ファイルとして配置され、wrangler 標準の `d1 migrations apply` で適用されます。`d1_migrations` テーブルが適用済みを追跡するので、何度実行しても未適用分のみが安全に流れます。
+
 ```bash
 # 本番D1にスキーマ適用
-npx wrangler d1 execute line-crm --file=packages/db/schema.sql
+pnpm db:migrate
 
 # ローカルD1にスキーマ適用（開発用）
 pnpm db:migrate:local
+
+# 適用状況の確認
+pnpm db:migrate:status        # 本番
+pnpm db:migrate:status:local  # ローカル
 ```
 
 ## 4. Workers シークレット設定

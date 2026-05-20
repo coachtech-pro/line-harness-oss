@@ -15,7 +15,7 @@ labels: documentation
 
 ## 問題・改善したい点
 
-<!-- 既存の記述で誤っている / 抜けている / 分かりにくい箇所。例) schema.sql 単体だと traffic_pools テーブルが作られないが、その旨が書かれていない -->
+<!-- 既存の記述で誤っている / 抜けている / 分かりにくい箇所。例) `pnpm db:migrate` の前に `wrangler.toml` を `.example` からコピーする手順が抜けている -->
 
 ## 改善案
 

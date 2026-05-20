@@ -373,7 +373,7 @@ Stripe の `metadata` に `line_friend_id` を設定するだけで:
 | `apps/worker/wrangler.toml` | Worker 設定 |
 | `apps/web/` | Next.js 管理パネル |
 | `apps/worker/src/client/` | LIFF フロントエンド（Worker 統合） |
-| `packages/db/schema.sql` | D1 スキーマ定義 |
+| `packages/db/migrations/` | D1 スキーマ migration ファイル群（wrangler 標準） |
 | `packages/db/src/` | データベースクエリ |
 | `packages/sdk/src/` | TypeScript SDK ソース |
 | `packages/line-sdk/src/` | LINE API クライアント |

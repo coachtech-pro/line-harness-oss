@@ -49,6 +49,7 @@ not_found_handling = "single-page-application"
 binding = "DB"
 database_name = "${options.d1DatabaseName}"
 database_id = "${options.d1DatabaseId}"
+migrations_dir = "../../packages/db/migrations"
 
 [[r2_buckets]]
 binding = "IMAGES"

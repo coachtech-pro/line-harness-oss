@@ -92,12 +92,12 @@ Claude Code ──→ Workers API ──→ D1
 | レイヤー | 技術 |
 |---------|------|
 | API / Webhook | Cloudflare Workers + Hono |
-| データベース | Cloudflare D1 (SQLite) — 42 テーブル |
+| データベース | Cloudflare D1 (SQLite) — 51 テーブル |
 | 管理画面 | Next.js 15 (App Router) + Tailwind CSS |
 | LIFF | Vite + TypeScript |
 | SDK | TypeScript (ESM + CJS, 41 テスト) |
 | 定期実行 | Workers Cron Triggers (5分毎) |
-| CI/CD | GitHub Actions → 自動デプロイ |
+| デプロイ | `pnpm deploy:setup` / `pnpm deploy:update` ウィザード |
 
 **Cloudflare 無料枠で 5,000 友だちまで運用可能。サーバー代 0 円。**
 
@@ -113,7 +113,35 @@ Claude Code ──→ Workers API ──→ D1
 - [Cloudflare アカウント](https://dash.cloudflare.com/sign-up)
 - [LINE Developers アカウント](https://developers.line.biz/)
 
-### 1. セットアップ
+### ⚡️ 自動セットアップ (推奨)
+
+LINE チャネル情報（チャネル ID / シークレット / アクセストークン / LIFF ID 等）を準備の上、対話ウィザードを起動するだけで、D1 / R2 / シークレット / Worker / Web のデプロイまでまとめて自動実行されます。
+
+```bash
+git clone https://github.com/Shudesu/line-harness-oss.git
+cd line-harness-oss
+pnpm install
+pnpm deploy:setup     # 対話ウィザード
+```
+
+ウィザードが行うこと:
+
+1. Cloudflare 認証チェック (`wrangler login`)
+2. アカウント選択
+3. プロジェクト名 / LINE 認証情報 / LIFF ID の入力
+4. D1 データベース作成 + 全マイグレーション適用 (`d1_migrations` で追跡)
+5. R2 バケット作成 (`<project>-images`)
+6. Workers シークレットを一括設定
+7. Worker / 管理画面 (Next.js) のデプロイ
+8. MCP 設定の生成
+
+セットアップ後は `pnpm deploy:update` で再デプロイ + 未適用マイグレーションを安全に追加適用できます。
+
+LINE チャネルの作成方法は次節を参照。チャネル作成済みの場合はそのまま `pnpm deploy:setup` を実行してください。手動で進めたい場合は以下の「手動セットアップ」セクションを参照。
+
+---
+
+### 1. セットアップ (手動)
 
 ```bash
 git clone https://github.com/Shudesu/line-harness-oss.git
@@ -149,17 +177,24 @@ pnpm install
 2. **R2 を有効化** — ダッシュボード ([https://dash.cloudflare.com](https://dash.cloudflare.com) → R2) で「Purchase R2 / Enable R2」をクリックして利用規約に同意 (無料枠あり)。R2 が有効でないと初回 deploy が失敗します。
 3. **workers.dev サブドメインを登録** — ダッシュボード → Workers → onboarding 画面で好きなサブドメイン名を入力 (例: `your-name`)。これで Worker が `*.your-name.workers.dev` で公開可能になります。
 
-### 4. wrangler.toml の編集
+### 4. wrangler.toml の作成
 
-`apps/worker/wrangler.toml` を開き、プレースホルダーを実値に置き換えます。
+`apps/worker/wrangler.toml` は個人の `account_id` / `database_id` を含むためリポジトリでは追跡されません。テンプレートからコピーして編集します。
+
+```bash
+cp apps/worker/wrangler.toml.example apps/worker/wrangler.toml
+```
+
+コピーした `apps/worker/wrangler.toml` を開き、プレースホルダーを実値に置き換えます。
 
 ```toml
-account_id = "YOUR_DEV_ACCOUNT_ID"           # ← 手順3でメモした Account ID
+account_id = "YOUR_ACCOUNT_ID"                # ← 手順3でメモした Account ID
 
 [[d1_databases]]
 binding = "DB"                                # ← コードはこの名前を期待 (変更しない)
 database_name = "line-crm"
 database_id = "YOUR_D1_DATABASE_ID"           # ← 次手順で取得して書き戻す
+migrations_dir = "../../packages/db/migrations"
 ```
 
 ### 5. D1 データベース作成 + スキーマ適用
@@ -168,12 +203,11 @@ database_id = "YOUR_D1_DATABASE_ID"           # ← 次手順で取得して書�
 # 1) リモート D1 を作成 → 出力された database_id を wrangler.toml に書き戻す
 npx wrangler d1 create line-crm
 
-# 2) スキーマと全マイグレーションをリモート D1 へ流す
-#    (schema.sql 単体では不足するテーブルがあるため migrations もまとめて適用)
+# 2) 全マイグレーションをリモート D1 へ流す (wrangler 標準の d1 migrations apply)
 pnpm db:migrate
 ```
 
-> ℹ️ マイグレーション実行時に `duplicate column name` のエラーが出る箇所がありますが、`schema.sql` に既に含まれている列を ALTER しようとしただけなので無視して構いません。`no such table` 等のエラーが出ない限り問題ありません。
+> ℹ️ `d1_migrations` テーブルで適用済みが追跡されるため、何度実行しても未適用分のみが安全に流れます。適用状況は `pnpm db:migrate:status` で確認できます。
 
 ### 6. シークレット設定
 
@@ -268,14 +302,14 @@ line-harness-oss/
 │   ├── web/              # Next.js 15 管理画面
 │   └── liff/             # LINE ミニアプリ (Vite)
 ├── packages/
-│   ├── db/               # D1 スキーマ + クエリ (42テーブル)
+│   ├── db/               # D1 スキーマ (migrations/) + クエリ (51テーブル)
 │   ├── sdk/              # TypeScript SDK (41テスト)
 │   ├── line-sdk/         # LINE Messaging API ラッパー
 │   └── shared/           # 共有型定義
 ├── docs/
 │   └── wiki/             # 全23ページのドキュメント
 └── .github/
-    └── workflows/        # GitHub Actions 自動デプロイ
+    └── ISSUE_TEMPLATE/   # Issue テンプレート
 ```
 
 ---

@@ -456,6 +456,6 @@ curl -X PUT ".../api/chats/$CHAT_ID" \
 - オペレーター/チャットAPI: `apps/worker/src/routes/chats.ts`
 - LINE Webhook処理（自動応答含む）: `apps/worker/src/routes/webhook.ts`
 - DB オペレーター/チャット: `packages/db/src/chats.ts`
-- 自動応答テーブル: `packages/db/schema.sql` (auto_replies, 131-141行目)
-- メッセージログテーブル: `packages/db/schema.sql` (messages_log, 116-128行目)
-- マイグレーション: `packages/db/migrations/002_round3.sql` (156-181行目)
+- 自動応答テーブル: `packages/db/migrations/000_init.sql` (auto_replies)
+- メッセージログテーブル: `packages/db/migrations/000_init.sql` (messages_log)
+- マイグレーション: `packages/db/migrations/002_round3.sql` (chats / auto_replies 等の追加分)

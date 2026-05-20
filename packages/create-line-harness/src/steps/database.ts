@@ -1,5 +1,5 @@
 import * as p from "@clack/prompts";
-import { readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { wrangler, WranglerError } from "../lib/wrangler.js";
 
@@ -11,6 +11,7 @@ interface DatabaseResult {
 export async function createDatabase(
   repoDir: string,
   databaseName: string,
+  accountId: string,
 ): Promise<DatabaseResult> {
   const s = p.spinner();
 
@@ -53,46 +54,42 @@ export async function createDatabase(
     }
   }
 
-  // Run base schema first, then migrations
-  const schemaFile = join(repoDir, "packages/db/schema.sql");
-  const migrationsDir = join(repoDir, "packages/db/migrations");
-  const migrationFiles = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
+  // Apply migrations via wrangler's native d1_migrations tracking.
+  // We swap wrangler.toml to a config pointing at the freshly-created DB so
+  // `wrangler d1 migrations apply` resolves it, then restore the original.
+  const workerDir = join(repoDir, "apps/worker");
+  const tomlPath = join(workerDir, "wrangler.toml");
+  const originalToml = existsSync(tomlPath)
+    ? readFileSync(tomlPath, "utf-8")
+    : null;
 
-  const totalFiles = 1 + migrationFiles.length;
-  s.start(`テーブル作成中（${totalFiles} files）...`);
-
-  // Base schema (CREATE IF NOT EXISTS — safe to re-run)
+  s.start("マイグレーション適用中...");
   try {
-    await wrangler([
-      "d1",
-      "execute",
-      databaseName,
-      "--remote",
-      "--file",
-      schemaFile,
-    ]);
-  } catch {
-    // May fail if tables exist with different schema — continue to migrations
-  }
+    const migrateToml = `name = "${databaseName}"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+account_id = "${accountId}"
 
-  // Migration files
-  for (const file of migrationFiles) {
-    try {
-      await wrangler([
-        "d1",
-        "execute",
-        databaseName,
-        "--remote",
-        "--file",
-        join(migrationsDir, file),
-      ]);
-    } catch {
-      // Already applied — continue
+[[d1_databases]]
+binding = "DB"
+database_name = "${databaseName}"
+database_id = "${databaseId}"
+migrations_dir = "../../packages/db/migrations"
+`;
+    writeFileSync(tomlPath, migrateToml);
+    await wrangler(
+      ["d1", "migrations", "apply", databaseName, "--remote"],
+      { cwd: workerDir },
+    );
+    s.stop("マイグレーション適用完了");
+  } catch (error) {
+    s.stop("マイグレーション適用失敗");
+    throw error;
+  } finally {
+    if (originalToml !== null) {
+      writeFileSync(tomlPath, originalToml);
     }
   }
-  s.stop("テーブル作成完了");
 
   return { databaseId, databaseName };
 }

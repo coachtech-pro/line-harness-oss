@@ -23,7 +23,7 @@ https://github.com/Shudesu/line-harness-oss
 #### 1-1. ref_tracking テーブルにクリックIDカラム追加
 
 ```sql
--- packages/db/schema.sql に追加
+-- packages/db/migrations/ に新規ファイルを追加して定義する
 ALTER TABLE ref_tracking ADD COLUMN fbclid TEXT;
 ALTER TABLE ref_tracking ADD COLUMN gclid TEXT;
 ALTER TABLE ref_tracking ADD COLUMN twclid TEXT;

@@ -374,7 +374,11 @@ async function runSetupInner(
 
   // Step 7: Create D1 database + run migrations
   if (!isDone(state, "database")) {
-    const { databaseId, databaseName } = await createDatabase(repoDir, state.projectName!);
+    const { databaseId, databaseName } = await createDatabase(
+      repoDir,
+      state.projectName!,
+      state.accountId!,
+    );
     state.d1DatabaseId = databaseId;
     state.d1DatabaseName = databaseName;
     markDone(state, "database");

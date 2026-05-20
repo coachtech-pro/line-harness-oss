@@ -1,0 +1,60 @@
+name = "line-harness"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+workers_dev = true
+
+# ═══════════════════════════════════════════════════════════════
+# このファイルはテンプレートです。
+#
+# 初回セットアップ:
+#   推奨: `pnpm deploy:setup` を実行するとウィザードが
+#         アカウント / D1 / R2 を作成し wrangler.toml を生成します。
+#
+#   手動の場合:
+#     1. cp apps/worker/wrangler.toml.example apps/worker/wrangler.toml
+#     2. `npx wrangler whoami` で account_id を確認して書き込む
+#     3. `npx wrangler d1 create line-crm` で database_id を取得して書き込む
+#     4. `pnpm db:migrate` で migration を適用
+# ═══════════════════════════════════════════════════════════════
+account_id = "YOUR_ACCOUNT_ID"
+
+[assets]
+directory = "dist/client"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "line-crm"
+database_id = "YOUR_D1_DATABASE_ID"
+migrations_dir = "../../packages/db/migrations"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "line-harness-images"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+# ═══════════════════════════════════════════════════════════════
+# 本番環境 (別アカウント運用する場合)
+# 使い方: npx wrangler deploy --env production --name your-worker-name
+# ═══════════════════════════════════════════════════════════════
+[env.production]
+account_id = "YOUR_ACCOUNT_ID"
+
+[env.production.assets]
+directory = "dist/client"
+binding = "ASSETS"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "line-crm"
+database_id = "YOUR_D1_DATABASE_ID"
+migrations_dir = "../../packages/db/migrations"
+
+[[env.production.r2_buckets]]
+binding = "IMAGES"
+bucket_name = "line-harness-images"
+
+[env.production.triggers]
+crons = ["*/5 * * * *"]

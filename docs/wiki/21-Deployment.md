@@ -1,6 +1,6 @@
 # 21. デプロイメント
 
-LINE Harness のローカル開発、本番デプロイ、CI/CD の完全ガイド。
+LINE Harness のローカル開発と本番デプロイの完全ガイド。
 
 ---
 
@@ -12,7 +12,7 @@ line-harness/
 │   ├── worker/        # Cloudflare Workers API サーバー + LIFF フロントエンド
 │   └── web/           # Next.js 管理パネル
 ├── packages/
-│   ├── db/            # D1 データベースクエリ + schema.sql
+│   ├── db/            # D1 データベースクエリ + migrations/
 │   ├── sdk/           # @line-harness/sdk (TypeScript SDK)
 │   ├── line-sdk/      # LINE Messaging API クライアント
 │   └── shared/        # 共有型定義
@@ -97,16 +97,24 @@ pnpm deploy:worker
 
 ### wrangler.toml 設定
 
+`apps/worker/wrangler.toml` は個人の `account_id` / `database_id` を含むため **リポジトリでは追跡されません** (`.gitignore` 対象)。テンプレートからコピーして利用します。
+
+```bash
+cp apps/worker/wrangler.toml.example apps/worker/wrangler.toml
+```
+
 ```toml
 name = "your-worker-name"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 workers_dev = true
+account_id = "YOUR_ACCOUNT_ID"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "line-crm"
 database_id = "YOUR_D1_DATABASE_ID"
+migrations_dir = "../../packages/db/migrations"
 
 [triggers]
 crons = ["*/5 * * * *"]
@@ -131,51 +139,6 @@ wrangler secret put LIFF_URL
 # オプション
 wrangler secret put STRIPE_WEBHOOK_SECRET
 ```
-
----
-
-## GitHub Actions 自動デプロイ
-
-`.github/workflows/deploy-worker.yml` に設定済み。
-
-### トリガー条件
-
-`main` ブランチへの push で、以下のパスに変更がある場合に実行:
-- `apps/worker/**`
-- `packages/db/**`
-- `packages/shared/**`
-- `packages/line-sdk/**`
-- `.github/workflows/deploy-worker.yml`
-
-### ワークフロー内容
-
-```yaml
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @line-crm/shared --filter @line-crm/line-sdk --filter @line-crm/db build
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/worker
-          command: deploy
-```
-
-### 必要な GitHub Secrets
-
-| シークレット名 | 取得方法 |
-|--------------|----------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare Dashboard > My Profile > API Tokens > Create Token |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard > Workers > Account ID |
 
 ---
 
@@ -225,21 +188,28 @@ https://line-harness.your-account.workers.dev
 
 ## D1 データベースマイグレーション
 
+スキーマは `packages/db/migrations/` 配下のファイルで管理され、wrangler 標準の `d1 migrations apply` で適用される。適用済みは `d1_migrations` テーブルで自動追跡されるので、何度実行しても未適用分のみが流れる。
+
 ### リモート (本番)
 
 ```bash
 pnpm db:migrate
-# => wrangler d1 execute line-crm --file=packages/db/schema.sql
+# => wrangler d1 migrations apply line-crm -c apps/worker/wrangler.toml --remote
 ```
 
 ### ローカル
 
 ```bash
 pnpm db:migrate:local
-# => wrangler d1 execute line-crm --file=packages/db/schema.sql --local
+# => wrangler d1 migrations apply line-crm -c apps/worker/wrangler.toml --local
 ```
 
-スキーマは `CREATE TABLE IF NOT EXISTS` を使用しているため、冪等に実行可能。既存テーブルはスキップされる。
+### 適用状況の確認
+
+```bash
+pnpm db:migrate:status        # 本番
+pnpm db:migrate:status:local  # ローカル
+```
 
 ### D1 データベース作成 (初回のみ)
 

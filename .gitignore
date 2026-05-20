@@ -9,6 +9,10 @@ dist/
 .DS_Store
 .mcp.json
 *.toml.bak
+# 個人の account_id / database_id を含むため追跡対象から除外。
+# 新規セットアップは apps/worker/wrangler.toml.example を参照、
+# または `pnpm deploy:setup` で自動生成。
+apps/worker/wrangler.toml
 .env.production
 .env.staging
 apps/web/out/

@@ -118,8 +118,8 @@ echo "Backup completed: $BACKUP_DIR"
 ### リストア
 
 ```bash
-# schema.sql で空テーブル作成
-wrangler d1 execute line-crm --file=packages/db/schema.sql
+# migrations で空テーブル作成
+pnpm db:migrate
 
 # JSON からデータ復元（手動 INSERT が必要）
 ```
@@ -291,7 +291,7 @@ curl -s -H "Authorization: Bearer $KEY" \
 
 ### クエリ最適化
 
-D1 のインデックスは schema.sql で適切に設定済み:
+D1 のインデックスは `packages/db/migrations/` の各 migration で適切に設定済み:
 - `idx_friends_line_user_id` -- Webhook 受信時の友だち検索
 - `idx_friend_scenarios_next_delivery_at` -- ステップ配信のスケジュール検索
 - `idx_messages_log_created_at` -- メッセージログの時系列検索

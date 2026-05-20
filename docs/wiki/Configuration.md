@@ -106,13 +106,16 @@ npx wrangler d1 create line-crm
 
 ### スキーマ適用
 
+D1 のスキーマは `packages/db/migrations/` 配下の migration ファイルで管理されており、wrangler 標準の `d1 migrations apply` で適用されます。
+
 ```bash
 # 本番
-npx wrangler d1 execute line-crm --file=packages/db/schema.sql
+pnpm db:migrate
+# = wrangler d1 migrations apply line-crm -c apps/worker/wrangler.toml --remote
 
 # ローカル開発
 pnpm db:migrate:local
-# = wrangler d1 execute line-crm --file=packages/db/schema.sql --local
+# = wrangler d1 migrations apply line-crm -c apps/worker/wrangler.toml --local
 ```
 
 ### D1 ダッシュボード確認
@@ -311,6 +314,8 @@ pnpm dev:web             # 管理画面ローカル起動
 pnpm build               # 全パッケージビルド
 pnpm deploy:worker       # Workers デプロイ
 pnpm deploy:web          # 管理画面ビルド
-pnpm db:migrate          # 本番D1にスキーマ適用
-pnpm db:migrate:local    # ローカルD1にスキーマ適用
+pnpm db:migrate          # 本番D1に未適用 migration を適用
+pnpm db:migrate:local    # ローカルD1に未適用 migration を適用
+pnpm db:migrate:status   # 本番D1の migration 適用状況
+pnpm db:migrate:status:local # ローカルD1の migration 適用状況
 ```

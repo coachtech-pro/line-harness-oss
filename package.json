@@ -9,8 +9,10 @@
     "build": "pnpm -r build",
     "deploy:worker": "pnpm --filter worker run deploy",
     "deploy:web": "pnpm --filter web build",
-    "db:migrate": "for f in packages/db/schema.sql packages/db/migrations/*.sql; do wrangler d1 execute line-crm -c apps/worker/wrangler.toml --remote --file=\"$f\"; done",
-    "db:migrate:local": "for f in packages/db/schema.sql packages/db/migrations/*.sql; do wrangler d1 execute line-crm -c apps/worker/wrangler.toml --local --file=\"$f\"; done",
+    "db:migrate": "wrangler d1 migrations apply line-crm -c apps/worker/wrangler.toml --remote",
+    "db:migrate:local": "wrangler d1 migrations apply line-crm -c apps/worker/wrangler.toml --local",
+    "db:migrate:status": "wrangler d1 migrations list line-crm -c apps/worker/wrangler.toml --remote",
+    "db:migrate:status:local": "wrangler d1 migrations list line-crm -c apps/worker/wrangler.toml --local",
     "deploy:setup": "node packages/create-line-harness/dist/index.js",
     "deploy:update": "node packages/create-line-harness/dist/index.js update"
   },
