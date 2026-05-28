@@ -88,6 +88,7 @@ interface FriendItem {
   displayName: string
   pictureUrl: string | null
   isFollowing: boolean
+  createdAt: string
 }
 
 interface MessageLog {
@@ -327,6 +328,28 @@ export default function ChatsPage() {
     } catch { /* silent */ }
   }, [selectedAccountId])
 
+  const chattedFriendIds = new Set(chats.map((chat) => chat.friendId));
+
+  const noChatFriends = allFriends.filter(
+    (friend) => friend.isFollowing && !chattedFriendIds.has(friend.id),
+  );
+
+  const normalizedNoChatFriends = noChatFriends.map((friend) => ({
+    id: friend.id,
+    friendName: friend.displayName,
+    friendPictureUrl: friend.pictureUrl,
+    status: null,
+    lastMessageAt: "",
+    createdAt: friend.createdAt,
+  }));
+
+  const displayList = [
+    ...normalizedNoChatFriends.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    ),
+    ...chats,
+  ];
+
   useEffect(() => { void loadAllFriends() }, [loadAllFriends])
 
   // Keep ref in sync so setChats updater can read the latest filter without stale closure
@@ -563,32 +586,34 @@ export default function ChatsPage() {
               </div>
             ) : (
               <>
-                {chats.map((chat) => {
-                  const statusInfo = statusConfig[chat.status]
-                  const isSelected = selectedChatId === chat.id
+                {displayList.map((item) => {
+                  const statusInfo = item.status ? statusConfig[item.status] : null;
+                  const isSelected = selectedChatId === item.id
                   return (
                     <button
-                      key={chat.id}
-                      onClick={() => { setSelectedFriendId(null); handleSelectChat(chat.id); }}
+                      key={item.id}
+                      onClick={() => { setSelectedFriendId(null); handleSelectChat(item.id); }}
                       className={`w-full text-left px-4 py-3 border-b border-gray-100 transition-colors ${
                         isSelected && !selectedFriendId ? 'bg-green-50' : 'hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        {chat.friendPictureUrl ? (
-                          <img src={chat.friendPictureUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                        {item.friendPictureUrl ? (
+                          <img src={item.friendPictureUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                            <span className="text-gray-500 text-sm">{chat.friendName.charAt(0)}</span>
+                            <span className="text-gray-500 text-sm">{item.friendName.charAt(0)}</span>
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">{chat.friendName}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{formatDatetime(chat.lastMessageAt)}</p>
+                          <p className="text-sm font-medium text-gray-900 truncate" data-testid="friend-name">{item.friendName}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{formatDatetime(item.lastMessageAt)}</p>
                         </div>
-                        <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${statusInfo.className}`}>
-                          {statusInfo.label}
-                        </span>
+                        {statusInfo && (
+                          <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${statusInfo.className}`}>
+                            {statusInfo.label}
+                          </span>
+                        )}
                       </div>
                     </button>
                   )
