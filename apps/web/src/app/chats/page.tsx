@@ -275,6 +275,8 @@ export default function ChatsPage() {
   const [isMessageInputFocused, setIsMessageInputFocused] = useState(false)
   const isComposingRef = useRef(false)
   const messagesScrollRef = useRef<HTMLDivElement | null>(null)
+  const [imageFile, setImageFile] = useState('')
+  const [preview, setPreview] = useState('')
 
   useEffect(() => {
     try {
@@ -425,6 +427,8 @@ export default function ChatsPage() {
   const handleSelectChat = (chatId: string) => {
     setSelectedChatId(chatId)
     setMessageContent('')
+    setImageFile('')
+    setPreview('')
   }
 
   const triggerLoadingAnimation = useCallback(async (chatId: string) => {
@@ -447,14 +451,27 @@ export default function ChatsPage() {
   }, [showLoadingIndicator, loadingSeconds])
 
   const handleSendMessage = async () => {
-    if (!selectedChatId || !messageContent.trim() || sending || sendLockRef.current) return
-    const content = messageContent.trim()
+    if (!selectedChatId || (!messageContent.trim() && !imageFile) || sending || sendLockRef.current) return
+    const messageType = imageFile ? 'image' : 'text'
+    let imageUrl = ''
+    if (imageFile) {
+      const response = await fetchApi<{ data: { url: string } }>('/api/images', {
+        method: 'POST',
+        body: JSON.stringify({ data: imageFile }),
+      })
+      imageUrl = response.data.url
+    }
+    const content = imageUrl || messageContent.trim()
     const sendingChatId = selectedChatId  // capture the chat id for this send
     sendLockRef.current = true
+
     setSending(true)
     try {
-      await api.chats.send(sendingChatId, { content })
-      setMessageContent('')
+        await api.chats.send(sendingChatId, { content })
+        setMessageContent('')
+        setImageFile('')
+        setPreview('')
+
       // Optimistic update: append message locally instead of refetching (prevents scroll jump / full reload feel)
       const now = new Date().toISOString()
       // Only mutate chatDetail if it still corresponds to the chat we just sent to
@@ -467,7 +484,7 @@ export default function ChatsPage() {
           {
             id: crypto.randomUUID(),
             direction: 'outgoing',
-            messageType: 'text',
+            messageType: messageType,
             content,
             createdAt: now,
           },
@@ -497,6 +514,20 @@ export default function ChatsPage() {
       setSending(false)
       sendLockRef.current = false
     }
+  }
+
+  const handleImageChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPreview(URL.createObjectURL(file))
+    const reader = new FileReader()
+
+    reader.onloadend = () => {
+      setImageFile(reader.result as string)
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleStatusUpdate = async (newStatus: Chat['status']) => {
@@ -715,11 +746,10 @@ export default function ChatsPage() {
                           <FlexPreviewComponent content={msg.content} maxWidth={280} />
                         </div>
                       )
-                    } else if (msg.messageType === 'image') {
+                    } else if (msg.content.endsWith('.jpeg') || msg.content.endsWith('.png')) {
                       try {
-                        const parsed = JSON.parse(msg.content)
                         bubbleContent = (
-                          <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
+                          <img src={msg.content} alt="" className="max-w-[200px] rounded" />
                         )
                       } catch {
                         bubbleContent = <span>🖼️ [画像]</span>
@@ -828,38 +858,46 @@ export default function ChatsPage() {
                   </label>
                 </div>
                 <div className="flex items-end gap-2">
-                  <textarea
-                    rows={2}
-                    value={messageContent}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setMessageContent(value)
-                      if (selectedChatId && isMessageInputFocused && value.trim()) {
-                        void triggerLoadingAnimation(selectedChatId)
-                      }
-                    }}
-                    onCompositionStart={() => { isComposingRef.current = true }}
-                    onCompositionEnd={() => { isComposingRef.current = false }}
-                    onFocus={() => {
-                      setIsMessageInputFocused(true)
-                      if (selectedChatId) {
-                        void triggerLoadingAnimation(selectedChatId)
-                      }
-                    }}
-                    onBlur={() => setIsMessageInputFocused(false)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="メッセージを入力..."
-                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                  />
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      rows={2}
+                      value={messageContent}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setMessageContent(value)
+                        if (selectedChatId && isMessageInputFocused && value.trim()) {
+                          void triggerLoadingAnimation(selectedChatId)
+                        }
+                      }}
+                      onCompositionStart={() => { isComposingRef.current = true }}
+                      onCompositionEnd={() => { isComposingRef.current = false }}
+                      onFocus={() => {
+                        setIsMessageInputFocused(true)
+                        if (selectedChatId) {
+                          void triggerLoadingAnimation(selectedChatId)
+                        }
+                      }}
+                      onBlur={() => setIsMessageInputFocused(false)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="メッセージを入力..."
+                      className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                    />
+                    <input type="file" accept="image/jpeg,image/png" onChange={handleImageChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
                   <button
                     onClick={handleSendMessage}
-                    disabled={sending || !messageContent.trim()}
+                    disabled={sending || (!messageContent.trim() && !imageFile)}
                     className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#06C755' }}
                   >
                     {sending ? '送信中...' : '送信'}
                   </button>
                 </div>
+                {preview && (
+                  <div className="mt-2">
+                    <img src={preview} alt="preview" className="w-full" />
+                  </div>
+                )}
               </div>
             </>
           ) : null}
