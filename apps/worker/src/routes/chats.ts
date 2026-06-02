@@ -426,11 +426,12 @@ chats.post('/api/chats/:id/loading', async (c) => {
 // オペレーターからメッセージ送信
 chats.post('/api/chats/:id/send', async (c) => {
   try {
+    console.log('SEND MESSAGE')
     const chatId = c.req.param('id');
     const chat = await resolveOrCreateChat(c.env.DB, chatId);
     if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
 
-    const body = await c.req.json<{ messageType?: string; content: string }>();
+    const body = await c.req.json<{ content: string; messageType?: string }>();
     if (!body.content) return c.json({ success: false, error: 'content is required' }, 400);
 
     const { friend, accessToken } = await resolveFriendAndAccessToken(
@@ -445,13 +446,19 @@ chats.post('/api/chats/:id/send', async (c) => {
     const lineClient = new LineClient(accessToken);
     const messageType = body.messageType ?? 'text';
 
+    console.log('MESSAGE TYPE', messageType)
+
     if (messageType === 'text') {
       await lineClient.pushTextMessage(friend.line_user_id, body.content);
     } else if (messageType === 'flex') {
       const contents = JSON.parse(body.content);
       await lineClient.pushFlexMessage(friend.line_user_id, extractFlexAltText(contents), contents);
     } else if (messageType === 'image') {
-      await lineClient.pushMessage(friend.line_user_id, [{ type: 'image', originalContentUrl: body.content, previewImageUrl: body.content }]);
+      await lineClient.pushMessage(friend.line_user_id, [{
+        type: 'image',
+        originalContentUrl: body.content,
+        previewImageUrl: body.content,
+      }]);
     }
 
     // メッセージログに記録
