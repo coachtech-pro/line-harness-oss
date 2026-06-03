@@ -9,7 +9,6 @@ it('lineClient.pushMessageが正しく呼ばれる', async () => {
     line_user_id: 'U123',
   }
 
-
   const body = {
     messageType: 'image',
     content: 'https://a.png',
