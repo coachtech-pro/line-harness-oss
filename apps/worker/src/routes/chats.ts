@@ -426,7 +426,6 @@ chats.post('/api/chats/:id/loading', async (c) => {
 // オペレーターからメッセージ送信
 chats.post('/api/chats/:id/send', async (c) => {
   try {
-    console.log('SEND MESSAGE')
     const chatId = c.req.param('id');
     const chat = await resolveOrCreateChat(c.env.DB, chatId);
     if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
@@ -446,8 +445,6 @@ chats.post('/api/chats/:id/send', async (c) => {
     const lineClient = new LineClient(accessToken);
     const messageType = body.messageType ?? 'text';
 
-    console.log('MESSAGE TYPE', messageType)
-
     if (messageType === 'text') {
       await lineClient.pushTextMessage(friend.line_user_id, body.content);
     } else if (messageType === 'flex') {
@@ -459,6 +456,8 @@ chats.post('/api/chats/:id/send', async (c) => {
         originalContentUrl: body.content,
         previewImageUrl: body.content,
       }]);
+    } else {
+      return c.json({ success: false, error: `Unsupported messageType: ${messageType}` }, 400);
     }
 
     // メッセージログに記録
