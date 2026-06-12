@@ -472,6 +472,10 @@ export default function ChatsPage() {
         setImageFile('')
         setPreview('')
 
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+
       // Optimistic update: append message locally instead of refetching (prevents scroll jump / full reload feel)
       const now = new Date().toISOString()
       // Only mutate chatDetail if it still corresponds to the chat we just sent to
@@ -529,6 +533,8 @@ export default function ChatsPage() {
     }
     reader.readAsDataURL(file)
   }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleStatusUpdate = async (newStatus: Chat['status']) => {
     if (!selectedChatId) return
@@ -882,7 +888,7 @@ export default function ChatsPage() {
                       placeholder="メッセージを入力..."
                       className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                     />
-                    <input type="file" accept="image/jpeg,image/png" onChange={handleImageChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500" data-testid="image-input" />
+                    <input type="file" accept="image/jpeg,image/png" onChange={handleImageChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500" data-testid="image-input" ref={fileInputRef} />
                   </div>
                   <button
                     onClick={handleSendMessage}
@@ -896,7 +902,7 @@ export default function ChatsPage() {
                 </div>
                 {preview && (
                   <div className="mt-2">
-                    <img src={preview} alt="preview" className="w-full" data-testid="image-preview" />
+                    <img src={preview} alt="preview" className="max-w-sm max-h-64 object-contain" data-testid="image-preview" />
                   </div>
                 )}
               </div>
