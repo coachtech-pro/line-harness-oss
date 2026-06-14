@@ -66,7 +66,7 @@ webhook.post('/webhook', async (c) => {
   const processingPromise = (async () => {
     for (const event of body.events) {
       try {
-        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env.WORKER_URL || new URL(c.req.url).origin);
+        await handleEvent(db, lineClient, event, channelAccessToken, matchedAccountId, c.env.WORKER_URL || new URL(c.req.url).origin, c.env.IMAGES);
       } catch (err) {
         console.error('Error handling webhook event:', err);
       }
@@ -78,6 +78,42 @@ webhook.post('/webhook', async (c) => {
   return c.json({ status: 'ok' }, 200);
 });
 
+// 受信画像メッセージの実体を取得して R2 に保存し、公開URLを返す。
+// - contentProvider が external の場合は提供URLをそのまま使う（LINEからの取得不要）
+// - line の場合は Messaging API で画像バイナリを取得して R2 に保存
+// 取得・保存に失敗した場合は null を返す（呼び出し側はラベル表示にフォールバック）。
+async function storeIncomingImage(
+  imagesBucket: R2Bucket | undefined,
+  accessToken: string,
+  message: { id: string; contentProvider?: { type: string; originalContentUrl?: string } },
+  workerUrl?: string,
+): Promise<string | null> {
+  if (message.contentProvider?.type === 'external' && message.contentProvider.originalContentUrl) {
+    return message.contentProvider.originalContentUrl;
+  }
+  if (!imagesBucket || !workerUrl) return null;
+  try {
+    const res = await fetch(
+      `https://api-data.line.me/v2/bot/message/${encodeURIComponent(message.id)}/content`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+      console.error('Failed to fetch image content from LINE:', res.status);
+      return null;
+    }
+    const mimeType = res.headers.get('Content-Type')?.split(';')[0] || 'image/jpeg';
+    const data = await res.arrayBuffer();
+    const subtype = mimeType.split('/')[1] || 'jpeg';
+    const ext = subtype === 'jpeg' ? 'jpg' : subtype;
+    const key = `${crypto.randomUUID()}.${ext}`;
+    await imagesBucket.put(key, data, { httpMetadata: { contentType: mimeType } });
+    return `${workerUrl}/images/${key}`;
+  } catch (err) {
+    console.error('storeIncomingImage error:', err);
+    return null;
+  }
+}
+
 async function handleEvent(
   db: D1Database,
   lineClient: LineClient,
@@ -85,6 +121,7 @@ async function handleEvent(
   lineAccessToken: string,
   lineAccountId: string | null = null,
   workerUrl?: string,
+  imagesBucket?: R2Bucket,
 ): Promise<void> {
   if (event.type === 'follow') {
     const userId =
@@ -246,7 +283,13 @@ async function handleEvent(
     const friend = await getFriendByLineUserId(db, userId);
     if (!friend) return;
 
-    const msg = event.message as { type: string; fileName?: string; title?: string };
+    const msg = event.message as {
+      id: string;
+      type: string;
+      fileName?: string;
+      title?: string;
+      contentProvider?: { type: string; originalContentUrl?: string };
+    };
     const labels: Record<string, string> = {
       sticker: '[スタンプ]',
       image: '[画像]',
@@ -255,7 +298,14 @@ async function handleEvent(
       file: msg.fileName ? `[ファイル: ${msg.fileName}]` : '[ファイル]',
       location: msg.title ? `[位置情報: ${msg.title}]` : '[位置情報]',
     };
-    const content = labels[msg.type] ?? `[${msg.type}]`;
+    let content = labels[msg.type] ?? `[${msg.type}]`;
+
+    // 受信画像は LINE から実体を取得して R2 に保存し、表示用URLを content に記録する。
+    // 取得失敗時はラベル '[画像]' のままにしておく（少なくとも受信した事実は残す）。
+    if (msg.type === 'image') {
+      const imageUrl = await storeIncomingImage(imagesBucket, lineAccessToken, msg, workerUrl);
+      if (imageUrl) content = imageUrl;
+    }
 
     await db
       .prepare(
