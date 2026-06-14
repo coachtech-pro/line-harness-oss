@@ -53,6 +53,26 @@ const SHOW_LOADING_PREF_KEY = 'lh_chat_show_loading_indicator'
 const LOADING_SECONDS_PREF_KEY = 'lh_chat_loading_seconds'
 const LOADING_REFRESH_INTERVAL_MS = 4000
 
+// 画像メッセージの content から表示用の URL を取り出す。
+// content は生成元により形式が異なる:
+//  - 手動送信: 生のURL
+//  - 配信/シナリオ/リマインダ: JSON { originalContentUrl, previewImageUrl }
+//  - 受信画像: '[画像]' などのラベル文字列(URLではない)
+// URLが取れない場合は null を返しプレースホルダ表示にする。
+function resolveImageSrc(content: string): string | null {
+  if (!content) return null
+  const trimmed = content.trim()
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as { originalContentUrl?: string; previewImageUrl?: string }
+      return parsed.originalContentUrl || parsed.previewImageUrl || null
+    } catch {
+      return null
+    }
+  }
+  return /^https?:\/\//.test(trimmed) ? trimmed : null
+}
+
 function formatDatetime(iso: string | null): string {
   if (!iso) return '-'
   return new Date(iso).toLocaleString('ja-JP', {
@@ -275,6 +295,8 @@ export default function ChatsPage() {
   const [isMessageInputFocused, setIsMessageInputFocused] = useState(false)
   const isComposingRef = useRef(false)
   const messagesScrollRef = useRef<HTMLDivElement | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState('')
 
   useEffect(() => {
     try {
@@ -425,6 +447,8 @@ export default function ChatsPage() {
   const handleSelectChat = (chatId: string) => {
     setSelectedChatId(chatId)
     setMessageContent('')
+    setSelectedFile(null)
+    setPreview('')
   }
 
   const triggerLoadingAnimation = useCallback(async (chatId: string) => {
@@ -447,14 +471,30 @@ export default function ChatsPage() {
   }, [showLoadingIndicator, loadingSeconds])
 
   const handleSendMessage = async () => {
-    if (!selectedChatId || !messageContent.trim() || sending || sendLockRef.current) return
-    const content = messageContent.trim()
+    if (!selectedChatId || (!messageContent.trim() && !selectedFile) || sending || sendLockRef.current) return
+    const messageType = selectedFile ? 'image' : 'text'
     const sendingChatId = selectedChatId  // capture the chat id for this send
+    // ロックは画像アップロード等の外部I/Oより前に立てる（二重送信防止）
     sendLockRef.current = true
     setSending(true)
     try {
-      await api.chats.send(sendingChatId, { content })
+      let content = messageContent.trim()
+      if (selectedFile) {
+        const dataUrl = await readFileAsDataUrl(selectedFile)
+        const response = await fetchApi<{ data: { url: string } }>('/api/images', {
+          method: 'POST',
+          body: JSON.stringify({ data: dataUrl }),
+        })
+        content = response.data.url
+      }
+      await api.chats.send(sendingChatId, { content, messageType })
       setMessageContent('')
+      setSelectedFile(null)
+      setPreview('')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+
       // Optimistic update: append message locally instead of refetching (prevents scroll jump / full reload feel)
       const now = new Date().toISOString()
       // Only mutate chatDetail if it still corresponds to the chat we just sent to
@@ -467,7 +507,7 @@ export default function ChatsPage() {
           {
             id: crypto.randomUUID(),
             direction: 'outgoing',
-            messageType: 'text',
+            messageType: messageType,
             content,
             createdAt: now,
           },
@@ -498,6 +538,25 @@ export default function ChatsPage() {
       sendLockRef.current = false
     }
   }
+
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+
+  const handleImageChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSelectedFile(file)
+    setPreview(URL.createObjectURL(file))
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleStatusUpdate = async (newStatus: Chat['status']) => {
     if (!selectedChatId) return
@@ -716,14 +775,14 @@ export default function ChatsPage() {
                         </div>
                       )
                     } else if (msg.messageType === 'image') {
-                      try {
-                        const parsed = JSON.parse(msg.content)
-                        bubbleContent = (
-                          <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
-                        )
-                      } catch {
-                        bubbleContent = <span>🖼️ [画像]</span>
-                      }
+                      // content には複数の形式が存在する:
+                      //  - 手動送信: 生のURL
+                      //  - 配信/シナリオ/リマインダ: JSON { originalContentUrl, previewImageUrl }
+                      //  - 受信画像: '[画像]' などのラベル文字列(URLではない)
+                      const imageSrc = resolveImageSrc(msg.content)
+                      bubbleContent = imageSrc
+                        ? <img src={imageSrc} alt="" className="max-w-[200px] rounded" data-testid="image-message" />
+                        : <span>🖼️ [画像]</span>
                     } else {
                       bubbleContent = <span>{msg.content}</span>
                     }
@@ -828,38 +887,47 @@ export default function ChatsPage() {
                   </label>
                 </div>
                 <div className="flex items-end gap-2">
-                  <textarea
-                    rows={2}
-                    value={messageContent}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setMessageContent(value)
-                      if (selectedChatId && isMessageInputFocused && value.trim()) {
-                        void triggerLoadingAnimation(selectedChatId)
-                      }
-                    }}
-                    onCompositionStart={() => { isComposingRef.current = true }}
-                    onCompositionEnd={() => { isComposingRef.current = false }}
-                    onFocus={() => {
-                      setIsMessageInputFocused(true)
-                      if (selectedChatId) {
-                        void triggerLoadingAnimation(selectedChatId)
-                      }
-                    }}
-                    onBlur={() => setIsMessageInputFocused(false)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="メッセージを入力..."
-                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                  />
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      rows={2}
+                      value={messageContent}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setMessageContent(value)
+                        if (selectedChatId && isMessageInputFocused && value.trim()) {
+                          void triggerLoadingAnimation(selectedChatId)
+                        }
+                      }}
+                      onCompositionStart={() => { isComposingRef.current = true }}
+                      onCompositionEnd={() => { isComposingRef.current = false }}
+                      onFocus={() => {
+                        setIsMessageInputFocused(true)
+                        if (selectedChatId) {
+                          void triggerLoadingAnimation(selectedChatId)
+                        }
+                      }}
+                      onBlur={() => setIsMessageInputFocused(false)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="メッセージを入力..."
+                      className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                    />
+                    <input type="file" accept="image/jpeg,image/png" onChange={handleImageChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500" data-testid="image-input" ref={fileInputRef} />
+                  </div>
                   <button
                     onClick={handleSendMessage}
-                    disabled={sending || !messageContent.trim()}
+                    disabled={sending || (!messageContent.trim() && !selectedFile)}
                     className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#06C755' }}
+                    data-testid="send-button"
                   >
                     {sending ? '送信中...' : '送信'}
                   </button>
                 </div>
+                {preview && (
+                  <div className="mt-2">
+                    <img src={preview} alt="preview" className="max-w-sm max-h-64 object-contain" data-testid="image-preview" />
+                  </div>
+                )}
               </div>
             </>
           ) : null}
