@@ -70,7 +70,7 @@ function ImagePreview({ content }: { content: string }) {
       </div>
     )
   } catch {
-    return <img src={content} alt="preview" className="max-w-[200px] rounded-lg border border-gray-200 mt-1" />
+    return <p className="text-xs text-red-500">画像 JSON パースエラー</p>
   }
 }
 
