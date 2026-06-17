@@ -24,8 +24,26 @@ interface ReminderStep {
   createdAt: string
 }
 
-interface ReminderWithSteps extends Reminder {
+interface ReminderFriend {
+  id: string
+  friendId: string
+  reminderId: string
+  targetDate: string
+  status: string
+  createdAt: string
+}
+
+interface ReminderWithStepsAndFriends extends Reminder {
   steps: ReminderStep[]
+  friends: ReminderFriend[]
+}
+
+interface FriendItem {
+  id: string
+  displayName: string
+  pictureUrl: string | null
+  isFollowing: boolean
+  tagId: string
 }
 
 interface CreateFormState {
@@ -37,6 +55,16 @@ interface StepFormState {
   offsetMinutes: number
   messageType: string
   messageContent: string
+}
+
+interface FriendFormState {
+  tagId: string
+  targetDate: string
+}
+
+interface Tag {
+  id: string
+  name: string
 }
 
 function formatOffset(minutes: number): string {
@@ -95,7 +123,7 @@ export default function RemindersPage() {
 
   // Expanded card state
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [expandedData, setExpandedData] = useState<ReminderWithSteps | null>(null)
+  const [expandedData, setExpandedData] = useState<ReminderWithStepsAndFriends | null>(null)
   const [expandLoading, setExpandLoading] = useState(false)
 
   // Step form state
@@ -107,6 +135,23 @@ export default function RemindersPage() {
   })
   const [stepSaving, setStepSaving] = useState(false)
   const [stepFormError, setStepFormError] = useState('')
+
+  // Friend form state
+  const [showFriendForm, setShowFriendForm] = useState(false)
+  const [friendForm, setFriendForm] = useState<FriendFormState>({
+    tagId: '',
+    targetDate: '',
+  })
+  const [friendSaving, setFriendSaving] = useState(false)
+  const [friendFormError, setFriendFormError] = useState('')
+
+  const [allFriends, setAllFriends] = useState<FriendItem[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
+
+  const [result, setResult] = useState<{
+    newCount: number
+    skipCount: number
+  } | null>(null)
 
   const loadReminders = useCallback(async () => {
     setLoading(true)
@@ -145,6 +190,25 @@ export default function RemindersPage() {
     }
   }, [])
 
+  const loadSelectedTagFriends = useCallback(async () => {
+    try {
+      const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined, tagId: friendForm.tagId })
+      if (friendRes.success) {
+        const filtered = (friendRes.data as unknown as { items: FriendItem[] }).items.filter((friend) => friend.isFollowing)
+        setAllFriends(filtered)
+      }
+    } catch { /* silent */ }
+  }, [selectedAccountId])
+
+  const loadTags = useCallback(async () => {
+    try {
+      const tagRes = await api.tags.list()
+      if (tagRes.success) {
+        setTags(tagRes.data)
+      }
+    } catch { /* silent */ }
+  }, [])
+
   const handleExpand = (id: string) => {
     if (expandedId === id) {
       setExpandedId(null)
@@ -157,6 +221,7 @@ export default function RemindersPage() {
     setShowStepForm(false)
     setStepFormError('')
     loadDetail(id)
+    loadTags()
   }
 
   const handleCreate = async () => {
@@ -248,6 +313,63 @@ export default function RemindersPage() {
       loadDetail(expandedId)
     } catch {
       setError('ステップの削除に失敗しました')
+    }
+  }
+
+  const handleAddFriend = async () => {
+    if (!expandedId) return
+    if (!friendForm.tagId) {
+      setFriendFormError('タグを選択してください')
+      return
+    }
+    if (!friendForm.targetDate) {
+      setFriendFormError('基準日を入力してください')
+      return
+    }
+    setFriendSaving(true)
+    setFriendFormError('')
+    try {
+      await loadSelectedTagFriends()
+      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate)
+
+      const registeredIds = new Set(
+        filteredTargetDateFriends?.map((f) => f.id) ?? []
+      )
+
+      const skippedFriends = allFriends.filter((friend) =>
+        registeredIds.has(friend.id)
+      )
+
+      const newFriends = allFriends.filter((friend) =>
+        !registeredIds.has(friend.id)
+      )
+      
+      let successCount = 0
+
+      for (const friend of newFriends) {
+        const res = await api.reminders.addFriend(expandedId, friend.id)
+        if (res.success) {
+          successCount++
+        } else {
+          setFriendFormError(res.error)
+          return
+        }
+      }
+
+      if (successCount > 0) {
+        setShowFriendForm(false)
+        setFriendForm({ targetDate: '', tagId: '' })
+        loadDetail(expandedId)
+      }
+
+      setResult({
+        newCount: successCount,
+        skipCount: skippedFriends.length,
+      })
+    } catch {
+      setFriendFormError('友だちの登録に失敗しました')
+    } finally {
+      setFriendSaving(false)
     }
   }
 
@@ -514,6 +636,96 @@ export default function RemindersPage() {
                                 </button>
                                 <button
                                   onClick={() => { setShowStepForm(false); setStepFormError('') }}
+                                  className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                >
+                                  キャンセル
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-semibold text-gray-700">現在登録されている友だち一覧</h4>
+                            <button
+                              onClick={() => { setShowFriendForm(true); setFriendFormError('') }}
+                              className="px-3 py-1 min-h-[44px] text-xs font-medium text-white rounded-md transition-opacity hover:opacity-90"
+                              style={{ backgroundColor: '#06C755' }}
+                            >
+                              + タグから一括登録
+                            </button>
+                          </div>
+                        {expandedData.friends.length === 0 ? (
+                          <p className="text-xs text-gray-400 py-4 text-center">友だちがいません。「タグから一括登録」から登録してください。</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {expandedData.friends
+                              .map((friend) => (
+                                <div
+                                  key={friend.id}
+                                  className="flex items-start justify-between bg-gray-50 rounded-lg p-3 border border-gray-100"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 whitespace-pre-wrap break-words line-clamp-3">
+                                    </p>
+                                  </div>
+                                  <button
+                                    className="ml-2 shrink-0 min-h-[44px] min-w-[44px] text-xs text-red-400 hover:text-red-600 transition-colors"
+                                  >
+                                    削除
+                                  </button>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                        </div>
+                        {showFriendForm && (
+                          <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+                            <h5 className="text-xs font-semibold text-gray-700 mb-3">タグから一括登録</h5>
+                            <div className="space-y-3 max-w-lg">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">タグ</label>
+                                <select
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                                  value={friendForm.tagId}
+                                  onChange={(e) => setFriendForm({ ...friendForm, tagId: e.target.value })}
+                                >
+                                  {tags.map((tag) => (
+                                    <option key={tag.id} value={tag.id}>
+                                      {tag.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">基準日<span className="text-red-500">*</span></label>
+                                <input
+                                  type="datetime-local"
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  value={friendForm.targetDate}
+                                  onChange={(e) => setFriendForm({ ...friendForm, targetDate: e.target.value })}
+                                />
+                              </div>
+
+                              {friendFormError && <p className="text-xs text-red-600">{friendFormError}</p>}
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleAddFriend}
+                                  disabled={friendSaving}
+                                  className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
+                                  style={{ backgroundColor: '#06C755' }}
+                                >
+                                  {friendSaving ? '登録中...' : '登録'}
+                                </button>
+                                <button
+                                  onClick={() => { setShowFriendForm(false); setFriendFormError('') }}
                                   className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                                 >
                                   キャンセル

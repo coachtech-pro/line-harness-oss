@@ -114,6 +114,12 @@ export async function getFriendReminders(db: D1Database, friendId: string): Prom
   return result.results;
 }
 
+export async function getReminderFriends(db: D1Database, reminderId: string): Promise<FriendReminderRow[]> {
+  const result = await db.prepare(`SELECT * FROM friend_reminders WHERE reminder_id = ? ORDER BY target_date ASC`)
+    .bind(reminderId).all<FriendReminderRow>();
+  return result.results;
+}
+
 export async function cancelFriendReminder(db: D1Database, id: string): Promise<void> {
   await db.prepare(`UPDATE friend_reminders SET status = 'cancelled', updated_at = ? WHERE id = ?`)
     .bind(jstNow(), id).run();

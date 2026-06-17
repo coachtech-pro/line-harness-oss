@@ -15,6 +15,7 @@ import type {
   Chat,
   Reminder,
   ReminderStep,
+  FriendReminder,
   ScoringRule,
   IncomingWebhook,
   OutgoingWebhook,
@@ -412,7 +413,7 @@ export const api = {
       return fetchApi<ApiResponse<Reminder[]>>('/api/reminders' + query)
     },
     get: (id: string) =>
-      fetchApi<ApiResponse<Reminder & { steps: ReminderStep[] }>>(`/api/reminders/${id}`),
+      fetchApi<ApiResponse<Reminder & { steps: ReminderStep[]; friends: FriendReminder[] }>>(`/api/reminders/${id}`),
     create: (data: { name: string; description?: string | null; lineAccountId?: string | null }) =>
       fetchApi<ApiResponse<Reminder>>('/api/reminders', {
         method: 'POST',
@@ -433,6 +434,11 @@ export const api = {
     deleteStep: (reminderId: string, stepId: string) =>
       fetchApi<ApiResponse<null>>(`/api/reminders/${reminderId}/steps/${stepId}`, {
         method: 'DELETE',
+      }),
+    addFriend: (reminderId: string, friendId: string) =>
+      fetchApi<ApiResponse<unknown>>(`/api/reminders/${reminderId}/enroll/${friendId}`, {
+        method: 'POST',
+        body: JSON.stringify({ friendId }),
       }),
   },
   scoring: {

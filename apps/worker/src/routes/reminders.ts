@@ -6,6 +6,7 @@ import {
   updateReminder,
   deleteReminder,
   getReminderSteps,
+  getReminderFriends,
   createReminderStep,
   deleteReminderStep,
   enrollFriendInReminder,
@@ -51,9 +52,10 @@ reminders.get('/api/reminders', async (c) => {
 reminders.get('/api/reminders/:id', async (c) => {
   try {
     const id = c.req.param('id');
-    const [reminder, steps] = await Promise.all([
+    const [reminder, steps, friends] = await Promise.all([
       getReminderById(c.env.DB, id),
       getReminderSteps(c.env.DB, id),
+      getReminderFriends(c.env.DB, id),
     ]);
     if (!reminder) return c.json({ success: false, error: 'Reminder not found' }, 404);
     return c.json({
@@ -72,6 +74,14 @@ reminders.get('/api/reminders/:id', async (c) => {
           messageType: s.message_type,
           messageContent: s.message_content,
           createdAt: s.created_at,
+        })),
+        friends: friends.map((f) => ({
+          id: f.id,
+          friendId: f.friend_id,
+          reminderId: f.reminder_id,
+          targetDate: f.target_date,
+          status: f.status,
+          createdAt: f.created_at,
         })),
       },
     });
