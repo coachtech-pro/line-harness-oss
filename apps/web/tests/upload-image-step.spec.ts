@@ -54,3 +54,38 @@ test('画像を選択するとアップロード → R2 保存 → サムネイ�
     'https://example.com/test.png'
   )
 })
+
+test('保存後にmessageContentがJSONになる', async ({ page }) => {
+  let requestBody: any
+
+  await page.route('**/api/scenarios/scenario-1/steps', async route => {
+    requestBody = route.request().postDataJSON()
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true }),
+    })
+  })
+
+  await page.getByTestId('message-type-select').selectOption('image')
+
+  await expect(page.getByTestId('image-drop-zone')).toBeVisible()
+  await expect(page.getByTestId('image-input')).toBeVisible()
+
+  await page.setInputFiles(
+    '[data-testid="image-input"]',
+    'tests/fixtures/test.png'
+  )
+
+  await page.getByTestId('save-step-button').click()
+
+  expect(() => JSON.parse(requestBody.messageContent)).not.toThrow()
+
+  const parsed = JSON.parse(requestBody.messageContent)
+
+  expect(parsed).toEqual({
+    originalContentUrl: 'https://example.com/test.png',
+    previewImageUrl: 'https://example.com/test.png',
+  })
+})

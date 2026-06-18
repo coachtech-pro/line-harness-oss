@@ -90,6 +90,7 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
   const [stepForm, setStepForm] = useState<StepFormState>(emptyStepForm)
   const [stepSaving, setStepSaving] = useState(false)
   const [stepError, setStepError] = useState('')
+  const [preview, setPreview] = useState<string | null>(null)
 
   const loadScenario = useCallback(async () => {
     setLoading(true)
@@ -194,9 +195,16 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
       body: JSON.stringify({ data: dataUrl }),
     })
 
+    const url = response.data.url
+
+    setPreview(url)
+
     setStepForm(prev => ({
       ...prev,
-      messageContent: response.data.url,
+      messageContent: JSON.stringify({
+        originalContentUrl: url,
+        previewImageUrl: url,
+      }),
     }))
   }
 
@@ -236,6 +244,7 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
       setShowStepForm(false)
       setEditingStepId(null)
       loadScenario()
+      setPreview(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -485,9 +494,9 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
                 }
               </div>
 
-              {stepForm.messageType === 'image' && stepForm.messageContent && (
+              {stepForm.messageType === 'image' && preview && (
                 <div>
-                  <img src={stepForm.messageContent} alt="preview" className="max-w-sm max-h-64 object-contain" data-testid="image-preview"  />
+                  <img src={preview} alt="preview" className="max-w-sm max-h-64 object-contain" data-testid="image-preview"  />
                 </div>
               )}
 
@@ -499,6 +508,7 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
                   disabled={stepSaving}
                   className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
                   style={{ backgroundColor: '#06C755' }}
+                  data-testid="save-step-button"
                 >
                   {stepSaving ? '保存中...' : editingStepId ? '更新' : '追加'}
                 </button>
