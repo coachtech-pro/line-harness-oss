@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 import Link from 'next/link'
 import type { Scenario, ScenarioStep, ScenarioTriggerType, MessageType } from '@line-crm/shared'
-import { api } from '@/lib/api'
+import { api, fetchApi } from '@/lib/api'
 import Header from '@/components/layout/header'
 import FlexPreviewComponent from '@/components/flex-preview'
 
@@ -90,6 +90,7 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
   const [stepForm, setStepForm] = useState<StepFormState>(emptyStepForm)
   const [stepSaving, setStepSaving] = useState(false)
   const [stepError, setStepError] = useState('')
+  const [preview, setPreview] = useState<string | null>(null)
 
   const loadScenario = useCallback(async () => {
     setLoading(true)
@@ -161,6 +162,54 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
     setStepError('')
   }
 
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+
+  const handleImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await uploadImage(file)
+  }
+
+  const handleDrop = async (
+    e: React.DragEvent<HTMLDivElement>
+  ) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    await uploadImage(file)
+  }
+
+  const uploadImage = async (file: File) => {
+    const dataUrl = await readFileAsDataUrl(file)
+
+    const response = await fetchApi<{ data: { url: string } }>('/api/images', {
+      method: 'POST',
+      body: JSON.stringify({ data: dataUrl }),
+    })
+
+    const url = response.data.url
+
+    setPreview(url)
+
+    setStepForm(prev => ({
+      ...prev,
+      messageContent: JSON.stringify({
+        originalContentUrl: url,
+        previewImageUrl: url,
+      }),
+    }))
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const handleSaveStep = async () => {
     if (!stepForm.messageContent.trim()) {
       setStepError('メッセージ内容を入力してください')
@@ -195,6 +244,10 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
       setShowStepForm(false)
       setEditingStepId(null)
       loadScenario()
+      setPreview(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     } catch {
       setStepError('ステップの保存に失敗しました')
     } finally {
@@ -409,6 +462,7 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                   value={stepForm.messageType}
                   onChange={(e) => setStepForm({ ...stepForm, messageType: e.target.value as MessageType })}
+                  data-testid="message-type-select"
                 >
                   {messageTypeOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -417,14 +471,34 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">メッセージ内容 <span className="text-red-500">*</span></label>
+                {stepForm.messageType !== 'image' &&
                 <textarea
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                   rows={4}
                   placeholder="メッセージ内容を入力..."
                   value={stepForm.messageContent}
                   onChange={(e) => setStepForm({ ...stepForm, messageContent: e.target.value })}
-                />
+                />}
+                {stepForm.messageType === 'image' &&
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500" data-testid="image-drop-zone"
+                >
+                  画像をドラッグ＆ドロップ
+                  <br />
+                  または
+                  <br />
+                  <input type="file" accept="image/jpeg,image/png" onChange={handleImageChange} data-testid="image-input" ref={fileInputRef}/>
+                </div>
+                }
               </div>
+
+              {stepForm.messageType === 'image' && preview && (
+                <div>
+                  <img src={preview} alt="preview" className="max-w-sm max-h-64 object-contain" data-testid="image-preview"  />
+                </div>
+              )}
 
               {stepError && <p className="text-xs text-red-600">{stepError}</p>}
 
@@ -434,6 +508,7 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
                   disabled={stepSaving}
                   className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
                   style={{ backgroundColor: '#06C755' }}
+                  data-testid="save-step-button"
                 >
                   {stepSaving ? '保存中...' : editingStepId ? '更新' : '追加'}
                 </button>
