@@ -156,7 +156,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
               <button
                 key={type}
                 type="button"
-                onClick={() => setForm({ ...form, messageType: type })}
+                onClick={() => setForm({ ...form, messageType: type, messageContent: '' })}
                 className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
                   form.messageType === type
                     ? 'border-green-500 text-green-700 bg-green-50'
@@ -193,11 +193,18 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
               <input type="file" accept="image/jpeg,image/png" onChange={handleImageChange} data-testid="image-input" ref={fileInputRef}/>
             </div>
           )}
-          {form.messageType === 'image' && form.messageContent && (
-            <div>
-              <img src={JSON.parse(form.messageContent).originalContentUrl} alt="preview" className="max-w-sm max-h-64 object-contain" data-testid="image-preview"  />
-            </div>
-          )}
+          {form.messageType === 'image' && (() => {
+            try {
+              const url = JSON.parse(form.messageContent).originalContentUrl
+              return url ?
+                <div>
+                  <img src={url} alt="preview" className="max-w-sm max-h-64 object-contain" data-testid="image-preview"  />
+                </div>
+                : null
+            } catch {
+              return null
+            }
+          })()}
           {form.messageType !== 'image' && (
           <textarea
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"

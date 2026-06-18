@@ -46,3 +46,20 @@ test('画像を選択するとアップロード → R2 保存 → サムネイ�
     'https://example.com/test.png'
   )
 })
+
+test('メッセージタイプ切替でmessageContentが空になり、アプリが落ちない', async ({ page }) => {
+  await page.getByTestId('message-type-button-text').click()
+
+  await page.getByTestId('message-content-textarea').fill('こんにちは')
+
+  await page.getByTestId('message-type-button-image').click()
+
+  await expect(page.getByTestId('image-drop-zone')).toBeVisible()
+  expect(await page.getByTestId('image-preview').count()).toBe(0)
+
+  await page.getByTestId('message-type-button-text').click()
+
+  await expect(
+    page.getByTestId('message-content-textarea')
+  ).toHaveValue('')
+})
