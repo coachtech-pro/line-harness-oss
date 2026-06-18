@@ -38,12 +38,15 @@ interface ReminderWithStepsAndFriends extends Reminder {
   friends: ReminderFriend[]
 }
 
+interface Tag {
+  id: string
+  name: string
+}
+
 interface FriendItem {
   id: string
   displayName: string
-  pictureUrl: string | null
-  isFollowing: boolean
-  tagId: string
+  tags: Tag[]
 }
 
 interface CreateFormState {
@@ -60,11 +63,6 @@ interface StepFormState {
 interface FriendFormState {
   tagId: string
   targetDate: string
-}
-
-interface Tag {
-  id: string
-  name: string
 }
 
 function formatOffset(minutes: number): string {
@@ -190,12 +188,11 @@ export default function RemindersPage() {
     }
   }, [])
 
-  const loadSelectedTagFriends = useCallback(async () => {
+  const loadAllFriends = useCallback(async () => {
     try {
-      const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined, tagId: friendForm.tagId })
+      const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined, limit: '800' })
       if (friendRes.success) {
-        const filtered = (friendRes.data as unknown as { items: FriendItem[] }).items.filter((friend) => friend.isFollowing)
-        setAllFriends(filtered)
+        setAllFriends((friendRes.data as unknown as { items: FriendItem[] }).items)
       }
     } catch { /* silent */ }
   }, [selectedAccountId])
@@ -222,6 +219,7 @@ export default function RemindersPage() {
     setStepFormError('')
     loadDetail(id)
     loadTags()
+    loadAllFriends()
   }
 
   const handleCreate = async () => {
@@ -329,21 +327,20 @@ export default function RemindersPage() {
     setFriendSaving(true)
     setFriendFormError('')
     try {
-      await loadSelectedTagFriends()
-      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate)
-
-      const registeredIds = new Set(
-        filteredTargetDateFriends?.map((f) => f.id) ?? []
-      )
-
-      const skippedFriends = allFriends.filter((friend) =>
-        registeredIds.has(friend.id)
-      )
-
-      const newFriends = allFriends.filter((friend) =>
-        !registeredIds.has(friend.id)
-      )
+      const filterTagFriends = allFriends.filter((friend) => friend.tags.some((tag) => tag.id === friendForm.tagId))
       
+      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate) ?? []
+
+      const skippedFriends = new Set(
+        filteredTargetDateFriends.map((f) => f.id)
+      )
+
+      const newFriends = filterTagFriends.filter((friend) =>
+        !skippedFriends.has(friend.id)
+      )
+
+      const skipCount = filterTagFriends.length - newFriends.length
+
       let successCount = 0
 
       for (const friend of newFriends) {
@@ -362,10 +359,11 @@ export default function RemindersPage() {
         loadDetail(expandedId)
       }
 
-      setResult({
+      setResult((prev) => ({
+        ...prev,
         newCount: successCount,
-        skipCount: skippedFriends.length,
-      })
+        skipCount: skipCount,
+      }))
     } catch {
       setFriendFormError('友だちの登録に失敗しました')
     } finally {
@@ -655,6 +653,13 @@ export default function RemindersPage() {
                               + タグから一括登録
                             </button>
                           </div>
+                          {result && (
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                              <p className="text-xs text-gray-600">
+                                新規登録: {result.newCount}件, スキップ: {result.skipCount}件
+                              </p>
+                            </div>
+                          )}
                         {expandedData.friends.length === 0 ? (
                           <p className="text-xs text-gray-400 py-4 text-center">友だちがいません。「タグから一括登録」から登録してください。</p>
                         ) : (
@@ -667,13 +672,9 @@ export default function RemindersPage() {
                                 >
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                                      </span>
-                                      <span className="text-xs text-gray-400">
-                                      </span>
+                                      <p className="text-xs text-gray-600">名前: {allFriends.find((f) => f.id === friend.id)?.displayName}</p>
+                                      <p className="text-xs text-gray-600">基準日: {friend.targetDate}</p>
                                     </div>
-                                    <p className="text-xs text-gray-600 whitespace-pre-wrap break-words line-clamp-3">
-                                    </p>
                                   </div>
                                   <button
                                     className="ml-2 shrink-0 min-h-[44px] min-w-[44px] text-xs text-red-400 hover:text-red-600 transition-colors"
