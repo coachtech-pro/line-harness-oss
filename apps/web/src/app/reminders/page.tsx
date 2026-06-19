@@ -190,7 +190,7 @@ export default function RemindersPage() {
 
   const loadAllFriends = useCallback(async () => {
     try {
-      const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined, limit: '800' })
+      const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined })
       if (friendRes.success) {
         setAllFriends((friendRes.data as unknown as { items: FriendItem[] }).items)
       }
@@ -327,24 +327,26 @@ export default function RemindersPage() {
     setFriendSaving(true)
     setFriendFormError('')
     try {
-      const filterTagFriends = allFriends.filter((friend) => friend.tags.some((tag) => tag.id === friendForm.tagId))
+      const filteredTagFriends = allFriends.filter((friend) => friend.tags.some((tag) => tag.id === friendForm.tagId))
       
       const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate) ?? []
 
       const skippedFriends = new Set(
-        filteredTargetDateFriends.map((f) => f.id)
+        filteredTargetDateFriends.map((f) => f.friendId)
       )
 
-      const newFriends = filterTagFriends.filter((friend) =>
+      const newFriends = filteredTagFriends.filter((friend) =>
         !skippedFriends.has(friend.id)
       )
 
-      const skipCount = filterTagFriends.length - newFriends.length
+      const skipCount = filteredTargetDateFriends.length
 
       let successCount = 0
 
       for (const friend of newFriends) {
-        const res = await api.reminders.addFriend(expandedId, friend.id)
+        const res = await api.reminders.addFriend(expandedId, friend.id, {
+          targetDate: friendForm.targetDate + ':00.000+09:00',
+        })
         if (res.success) {
           successCount++
         } else {
@@ -353,11 +355,9 @@ export default function RemindersPage() {
         }
       }
 
-      if (successCount > 0) {
-        setShowFriendForm(false)
-        setFriendForm({ targetDate: '', tagId: '' })
-        loadDetail(expandedId)
-      }
+      setShowFriendForm(false)
+      setFriendForm({ targetDate: '', tagId: '' })
+      loadDetail(expandedId)
 
       setResult((prev) => ({
         ...prev,
@@ -368,6 +368,17 @@ export default function RemindersPage() {
       setFriendFormError('友だちの登録に失敗しました')
     } finally {
       setFriendSaving(false)
+    }
+  }
+
+  const handleDeleteFriend = async (friendReminderId: string) => {
+    if (!expandedId) return
+    if (!confirm('この友だちを解除してもよいですか？')) return
+    try {
+      await api.reminders.deleteFriend(friendReminderId)
+      loadDetail(expandedId)
+    } catch {
+      setError('友だちの解除に失敗しました')
     }
   }
 
@@ -656,7 +667,7 @@ export default function RemindersPage() {
                           {result && (
                             <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
                               <p className="text-xs text-gray-600">
-                                新規登録: {result.newCount}件, スキップ: {result.skipCount}件
+                                新規{result.newCount}件 / スキップ{result.skipCount}件
                               </p>
                             </div>
                           )}
@@ -672,14 +683,16 @@ export default function RemindersPage() {
                                 >
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <p className="text-xs text-gray-600">名前: {allFriends.find((f) => f.id === friend.id)?.displayName}</p>
-                                      <p className="text-xs text-gray-600">基準日: {friend.targetDate}</p>
+                                      <p className="text-xs text-gray-600">名前: {allFriends.find((f) => f.id === friend.friendId)?.displayName}</p>
+                                      <p className="text-xs text-gray-600">基準日: {new Date(friend.targetDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                                     </div>
                                   </div>
                                   <button
+                                    onClick={() => handleDeleteFriend(friend.id)}
                                     className="ml-2 shrink-0 min-h-[44px] min-w-[44px] text-xs text-red-400 hover:text-red-600 transition-colors"
+                                    data-testid={`delete-friend-button-${friend.id}`}
                                   >
-                                    削除
+                                    解除
                                   </button>
                                 </div>
                               ))}
@@ -696,6 +709,7 @@ export default function RemindersPage() {
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                                   value={friendForm.tagId}
                                   onChange={(e) => setFriendForm({ ...friendForm, tagId: e.target.value })}
+                                  data-testid="tag-select"
                                 >
                                   {tags.map((tag) => (
                                     <option key={tag.id} value={tag.id}>
@@ -711,6 +725,7 @@ export default function RemindersPage() {
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                                   value={friendForm.targetDate}
                                   onChange={(e) => setFriendForm({ ...friendForm, targetDate: e.target.value })}
+                                  data-testid="target-date-input"
                                 />
                               </div>
 
@@ -722,6 +737,7 @@ export default function RemindersPage() {
                                   disabled={friendSaving}
                                   className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
                                   style={{ backgroundColor: '#06C755' }}
+                                  data-testid="add-friend-button"
                                 >
                                   {friendSaving ? '登録中...' : '登録'}
                                 </button>

@@ -69,5 +69,15 @@ export const friendsWithTag = {
         },
       ],
     },
+    {
+      id: "user-4",
+      displayName: "田中",
+      tags: [
+        {
+          id: "tag-1",
+          name: "タグ1",
+        },
+      ],
+    },
   ],
 };

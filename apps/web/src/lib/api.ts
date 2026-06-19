@@ -435,10 +435,14 @@ export const api = {
       fetchApi<ApiResponse<null>>(`/api/reminders/${reminderId}/steps/${stepId}`, {
         method: 'DELETE',
       }),
-    addFriend: (reminderId: string, friendId: string) =>
-      fetchApi<ApiResponse<unknown>>(`/api/reminders/${reminderId}/enroll/${friendId}`, {
+    addFriend: (reminderId: string, friendId: string, data: { targetDate: string }) =>
+      fetchApi<ApiResponse<FriendReminder>>(`/api/reminders/${reminderId}/enroll/${friendId}`, {
         method: 'POST',
-        body: JSON.stringify({ friendId }),
+        body: JSON.stringify(data),
+      }),
+    deleteFriend: (id: string) =>
+      fetchApi<ApiResponse<unknown>>(`/api/friend-reminders/${id}`, {
+        method: 'DELETE',
       }),
   },
   scoring: {
