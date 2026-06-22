@@ -14,12 +14,28 @@ export const reminderFriend = {
             friendId: "user-3",
             reminderId: "reminder-1",
             targetDate: "2026-01-01T10:00:00.000+09:00",
+            status: "active",
           },
           {
             id: "reminder-friend-2",
             friendId: "user-4",
             reminderId: "reminder-1",
             targetDate: "2026-01-01T10:00:00.000+09:00",
+            status: "completed",
+          },
+          {
+            id: "reminder-friend-3",
+            friendId: "user-2",
+            reminderId: "reminder-1",
+            targetDate: "2026-01-02T18:00:00.000+09:00",
+            status: "active",
+          },
+          {
+            id: "reminder-friend-4",
+            friendId: "user-5",
+            reminderId: "reminder-1",
+            targetDate: "2026-01-01T10:00:00.000+09:00",
+            status: "cancelled",
           }
         ],
       },

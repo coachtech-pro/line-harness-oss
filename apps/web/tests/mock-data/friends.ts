@@ -38,46 +38,58 @@ export const chatFriends = {
 
 export const friendsWithTag = {
   success: true,
-  data: [
-    {
-      id: "user-1",
-      displayName: "山田",
-      tags: [
-        {
-          id: "tag-1",
-          name: "タグ1",
-        },
-      ],
-    },
-    {
-      id: "user-2",
-      displayName: "鈴木",
-      tags: [
-        {
-          id: "tag-1",
-          name: "タグ1",
-        },
-      ],
-    },
-    {
-      id: "user-3",
-      displayName: "佐藤",
-      tags: [
-        {
-          id: "tag-2",
-          name: "タグ2",
-        },
-      ],
-    },
-    {
-      id: "user-4",
-      displayName: "田中",
-      tags: [
-        {
-          id: "tag-1",
-          name: "タグ1",
-        },
-      ],
-    },
-  ],
+  data: {
+    items: [
+      {
+        id: "user-1",
+        displayName: "山田",
+        tags: [
+          {
+            id: "tag-1",
+            name: "タグ1",
+          },
+        ],
+      },
+      {
+        id: "user-2",
+        displayName: "鈴木",
+        tags: [
+          {
+            id: "tag-1",
+            name: "タグ1",
+          },
+        ],
+      },
+      {
+        id: "user-3",
+        displayName: "佐藤",
+        tags: [
+          {
+            id: "tag-2",
+            name: "タグ2",
+          },
+        ],
+      },
+      {
+        id: "user-4",
+        displayName: "田中",
+        tags: [
+          {
+            id: "tag-1",
+            name: "タグ1",
+          },
+        ],
+      },
+      {
+        id: "user-5",
+        displayName: "斎藤",
+        tags: [
+          {
+            id: "tag-1",
+            name: "タグ1",
+          },
+        ],
+      },
+    ],
+  },
 };

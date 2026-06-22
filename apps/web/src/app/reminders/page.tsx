@@ -329,17 +329,17 @@ export default function RemindersPage() {
     try {
       const filteredTagFriends = allFriends.filter((friend) => friend.tags.some((tag) => tag.id === friendForm.tagId))
       
-      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate) ?? []
+      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate + ':00.000+09:00') ?? []
 
       const skippedFriends = new Set(
-        filteredTargetDateFriends.map((f) => f.friendId)
+        filteredTargetDateFriends.filter((f) => f.status !== 'cancelled').map((f) => f.friendId)
       )
 
       const newFriends = filteredTagFriends.filter((friend) =>
         !skippedFriends.has(friend.id)
       )
 
-      const skipCount = filteredTargetDateFriends.length
+      const skipCount = skippedFriends.size
 
       let successCount = 0
 
@@ -671,26 +671,27 @@ export default function RemindersPage() {
                               </p>
                             </div>
                           )}
-                        {expandedData.friends.length === 0 ? (
+                        {(expandedData.friends.length === 0) || (!expandedData.friends.some(friend => friend.status === 'active')) ? (
                           <p className="text-xs text-gray-400 py-4 text-center">友だちがいません。「タグから一括登録」から登録してください。</p>
                         ) : (
-                          <div className="space-y-2">
-                            {expandedData.friends
+                          <div>
+                            {expandedData.friends.filter(friend => friend.status === 'active')
                               .map((friend) => (
                                 <div
                                   key={friend.id}
-                                  className="flex items-start justify-between bg-gray-50 rounded-lg p-3 border border-gray-100"
+                                  className="flex justify-between bg-gray-50 rounded-lg p-3 border border-gray-100"
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex items-center gap-4">
                                       <p className="text-xs text-gray-600">名前: {allFriends.find((f) => f.id === friend.friendId)?.displayName}</p>
                                       <p className="text-xs text-gray-600">基準日: {new Date(friend.targetDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                                     </div>
                                   </div>
                                   <button
+                                    type="button"
                                     onClick={() => handleDeleteFriend(friend.id)}
-                                    className="ml-2 shrink-0 min-h-[44px] min-w-[44px] text-xs text-red-400 hover:text-red-600 transition-colors"
-                                    data-testid={`delete-friend-button-${friend.id}`}
+                                    className="ml-2 shrink-0 min-w-[44px] text-xs text-red-400 hover:text-red-600 transition-colors"
+                                    data-testid={`delete-friend-button-${friend.friendId}`}
                                   >
                                     解除
                                   </button>
@@ -704,7 +705,7 @@ export default function RemindersPage() {
                             <h5 className="text-xs font-semibold text-gray-700 mb-3">タグから一括登録</h5>
                             <div className="space-y-3 max-w-lg">
                               <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">タグ</label>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">タグ<span className="text-red-500">*</span></label>
                                 <select
                                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                                   value={friendForm.tagId}

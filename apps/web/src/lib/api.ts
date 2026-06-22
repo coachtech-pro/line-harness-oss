@@ -441,7 +441,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
     deleteFriend: (id: string) =>
-      fetchApi<ApiResponse<unknown>>(`/api/friend-reminders/${id}`, {
+      fetchApi<ApiResponse<null>>(`/api/friend-reminders/${id}`, {
         method: 'DELETE',
       }),
   },
