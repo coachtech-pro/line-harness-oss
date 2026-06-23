@@ -32,6 +32,8 @@ function serializeForm(row: DbForm) {
     saveToMetadata: Boolean(row.save_to_metadata),
     isActive: Boolean(row.is_active),
     submitCount: row.submit_count,
+    onSubmitReminderId: row.on_submit_reminder_id,
+    onSubmitReminderDateField: row.on_submit_reminder_date_field,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -89,6 +91,8 @@ forms.post('/api/forms', async (c) => {
       onSubmitWebhookHeaders?: string | null;
       onSubmitWebhookFailMessage?: string | null;
       saveToMetadata?: boolean;
+      onSubmitReminderId?: string | null;
+      onSubmitReminderDateField?: string | null;
     }>();
 
     if (!body.name) {
@@ -107,6 +111,8 @@ forms.post('/api/forms', async (c) => {
       onSubmitWebhookHeaders: body.onSubmitWebhookHeaders ?? null,
       onSubmitWebhookFailMessage: body.onSubmitWebhookFailMessage ?? null,
       saveToMetadata: body.saveToMetadata,
+      onSubmitReminderId: body.onSubmitReminderId ?? null,
+      onSubmitReminderDateField: body.onSubmitReminderDateField ?? null,
     });
 
     return c.json({ success: true, data: serializeForm(form) }, 201);
@@ -133,6 +139,8 @@ forms.put('/api/forms/:id', async (c) => {
       onSubmitWebhookFailMessage?: string | null;
       saveToMetadata?: boolean;
       isActive?: boolean;
+      onSubmitReminderId?: string | null;
+      onSubmitReminderDateField?: string | null;
     }>();
 
     // Only include fields that were explicitly sent (avoid undefined → null conversion)
@@ -149,6 +157,8 @@ forms.put('/api/forms/:id', async (c) => {
     if (body.onSubmitWebhookFailMessage !== undefined) updates.onSubmitWebhookFailMessage = body.onSubmitWebhookFailMessage;
     if (body.saveToMetadata !== undefined) updates.saveToMetadata = body.saveToMetadata;
     if (body.isActive !== undefined) updates.isActive = body.isActive;
+    if (body.onSubmitReminderId !== undefined) updates.onSubmitReminderId = body.onSubmitReminderId;
+    if (body.onSubmitReminderDateField !== undefined) updates.onSubmitReminderDateField = body.onSubmitReminderDateField;
 
     const updated = await updateForm(c.env.DB, id, updates as any);
 
