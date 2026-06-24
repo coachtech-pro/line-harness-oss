@@ -230,11 +230,11 @@ export default function FormsPage() {
                 />
               </div>
   
-              <div>
+              <div className="space-y-2">
                 <h3>送信時にリマインダへ登録</h3>
                 <div>
                   <label>リマインダ選択</label>
-                  <select value={form.onSubmitReminderId} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))}>
+                  <select value={form.onSubmitReminderId} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))} className="w-full p-2 border rounded">
                     {reminders.map((reminder) => (
                       <option key={reminder.id} value={reminder.id}>
                         {reminder.name}
@@ -244,7 +244,7 @@ export default function FormsPage() {
                 </div>
                 <div>
                   <label>基準日として使うフィールドの選択</label>
-                  <select value={form.onSubmitReminderDateField} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))}>
+                  <select value={form.onSubmitReminderDateField} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))} className="w-full p-2 border rounded">
                     {editDateFields.map((field) => (
                       <option key={field.name} value={field.name}>
                         {field.label}
@@ -288,29 +288,29 @@ export default function FormsPage() {
               </div>
               <label className="mr-2">メタデータを保存</label>
               <input type="checkbox" className="p-2 border rounded" onChange={(e) => setCreateForm({...createForm, saveToMetadata: e.target.checked})} />
-            </div>
 
-            <div>
-              <h3>送信時にリマインダへ登録</h3>
-              <div>
-                <label>リマインダ選択</label>
-                <select value={createForm.onSubmitReminderId} onChange={(e) => setCreateForm({...createForm, onSubmitReminderId: e.target.value})}>
-                  {reminders.map((reminder) => (
-                    <option key={reminder.id} value={reminder.id}>
-                      {reminder.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label>基準日として使うフィールドの選択</label>
-                <select value={createForm.onSubmitReminderDateField} onChange={(e) => setCreateForm({...createForm, onSubmitReminderDateField: e.target.value})}>
-                  {createDateFields.map((field) => (
-                    <option key={field.name} value={field.name}>
-                      {field.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2">
+                <h3>送信時にリマインダへ登録</h3>
+                <div>
+                  <label>リマインダ選択</label>
+                  <select value={createForm.onSubmitReminderId} onChange={(e) => setCreateForm({...createForm, onSubmitReminderId: e.target.value})} className="w-full p-2 border rounded">
+                    {reminders.map((reminder) => (
+                      <option key={reminder.id} value={reminder.id}>
+                        {reminder.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label>基準日として使うフィールドの選択</label>
+                  <select value={createForm.onSubmitReminderDateField} onChange={(e) => setCreateForm({...createForm, onSubmitReminderDateField: e.target.value})} className="w-full p-2 border rounded">
+                    {createDateFields.map((field) => (
+                      <option key={field.name} value={field.name}>
+                        {field.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
