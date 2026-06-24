@@ -13,6 +13,8 @@ interface Form {
   onSubmitTagId: string
   onSubmitScenarioId: string
   saveToMetadata: boolean
+  onSubmitReminderId: string
+  onSubmitReminderDateField: string
 }
 
 interface FormField {
@@ -40,7 +42,9 @@ export default function FormsPage() {
     fields: [],
     onSubmitTagId: '',
     onSubmitScenarioId: '',
-    saveToMetadata: false
+    saveToMetadata: false,
+    onSubmitReminderId: '',
+    onSubmitReminderDateField: '',
   })
   const [fieldsJson, setFieldsJson] = useState('[]')
   const [fieldJsonMap, setFieldJsonMap] = useState<Record<string, string>>({})
@@ -82,7 +86,9 @@ export default function FormsPage() {
           fields: [],
           onSubmitTagId: '',
           onSubmitScenarioId: '',
-          saveToMetadata: false
+          saveToMetadata: false,
+          onSubmitReminderId: '',
+          onSubmitReminderDateField: '',
         })
       
         setFieldsJson('[]')
@@ -116,6 +122,17 @@ export default function FormsPage() {
       } catch {}
     }, [selectedAccountId])
 
+  const getDateFields = (json: string) => {
+    try {
+      const fields: FormField[] = JSON.parse(json)
+      return fields.filter((field) => field.type === 'date')
+    } catch {
+      return []
+    }
+  }
+
+  const createDateFields = getDateFields(fieldsJson)
+
   useEffect(() => {
     loadForms()
     loadReminders()
@@ -131,114 +148,118 @@ export default function FormsPage() {
       </div>
       <div className="container mx-auto p-6">
         <div className="space-y-2">
-          {forms.map((form) => (
-            <div key={form.id} className="p-4 border rounded space-y-2">
-              <div>
-                <label>フォーム名</label>
-                <input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForms((prev) =>
+          {forms.map((form) => {
+            const editDateFields = getDateFields(fieldJsonMap[form.id] ?? '[]')
+
+            return (
+              <div key={form.id} className="p-4 border rounded space-y-2">
+                <div>
+                  <label>フォーム名</label>
+                  <input
+                    value={form.name}
+                    onChange={(e) =>
+                      setForms((prev) =>
+                        prev.map((f) =>
+                          f.id === form.id
+                            ? { ...f, name: e.target.value }
+                            : f
+                        )
+                      )
+                    }
+                  />
+                </div>
+  
+                <div>
+                  <label>フォーム説明</label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) =>
+                      setForms((prev) =>
+                        prev.map((f) =>
+                          f.id === form.id
+                            ? { ...f, description: e.target.value }
+                            : f
+                        )
+                      )
+                    }
+                  />
+                </div>
+  
+                <div>
+                  <label>フィールド定義（JSON形式）</label>
+                  <textarea
+                    value={fieldJsonMap[form.id] ?? ''}
+                    onChange={(e) => {
+                      setFieldJsonMap((prev) => ({
+                        ...prev,
+                        [form.id]: e.target.value
+                      }))
+                    }}
+                  />
+                </div>
+  
+                <div>
+                  <label>送信時タグ付与（タグID）</label>
+                  <input
+                    value={form.onSubmitTagId}
+                    onChange={(e) =>
+                      setForms((prev) =>
+                        prev.map((f) =>
+                          f.id === form.id
+                            ? { ...f, onSubmitTagId: e.target.value }
+                            : f
+                        )
+                      )
+                    }
+                  />
+                </div>
+  
+                <div>
+                  <label>送信時シナリオ登録（シナリオID）</label>
+                  <input
+                    value={form.onSubmitScenarioId}
+                    onChange={(e) =>
+                      setForms((prev) =>
                       prev.map((f) =>
                         f.id === form.id
-                          ? { ...f, name: e.target.value }
+                          ? { ...f, onSubmitScenarioId: e.target.value }
                           : f
                       )
                     )
                   }
                 />
               </div>
-
+  
               <div>
-                <label>フォーム説明</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForms((prev) =>
-                      prev.map((f) =>
-                        f.id === form.id
-                          ? { ...f, description: e.target.value }
-                          : f
-                      )
-                    )
-                  }
-                />
+                <h3>送信時にリマインダへ登録</h3>
+                <div>
+                  <label>リマインダ選択</label>
+                  <select value={form.onSubmitReminderId} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))}>
+                    {reminders.map((reminder) => (
+                      <option key={reminder.id} value={reminder.id}>
+                        {reminder.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label>基準日として使うフィールドの選択</label>
+                  <select value={form.onSubmitReminderDateField} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))}>
+                    {editDateFields.map((field) => (
+                      <option key={field.name} value={field.name}>
+                        {field.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-
-              <div>
-                <label>フィールド定義（JSON形式）</label>
-                <textarea
-                  value={fieldJsonMap[form.id] ?? ''}
-                  onChange={(e) => {
-                    setFieldJsonMap((prev) => ({
-                      ...prev,
-                      [form.id]: e.target.value
-                    }))
-                  }}
-                />
-              </div>
-
-              <div>
-                <label>送信時タグ付与（タグID）</label>
-                <input
-                  value={form.onSubmitTagId}
-                  onChange={(e) =>
-                    setForms((prev) =>
-                      prev.map((f) =>
-                        f.id === form.id
-                          ? { ...f, onSubmitTagId: e.target.value }
-                          : f
-                      )
-                    )
-                  }
-                />
-              </div>
-
-              <div>
-                <label>送信時シナリオ登録（シナリオID）</label>
-                <input
-                  value={form.onSubmitScenarioId}
-                  onChange={(e) =>
-                    setForms((prev) =>
-                    prev.map((f) =>
-                      f.id === form.id
-                        ? { ...f, onSubmitScenarioId: e.target.value }
-                        : f
-                    )
-                  )
-                }
-              />
+  
+              <button type="button" className="px-4 py-2 bg-green-500 text-white rounded" onClick={() => handleUpdateForm(form)}>
+                変更
+              </button>
             </div>
-
-            <div>
-              <h3>送信時にリマインダへ登録</h3>
-              <div>
-                <label>リマインダ選択</label>
-                <select>
-                  {reminders.map((reminder) => (
-                    <option key={reminder.id} value={reminder.id}>
-                      {reminder.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label>基準日として使うフィールドの選択</label>
-                <select>
-                  {form.fields.map((field) => (
-                    <option key={field.name} value={field.name}>
-                      {field.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <button type="button" className="px-4 py-2 bg-green-500 text-white rounded" onClick={() => handleUpdateForm(form)}>
-              変更
-            </button>
-        </div>
-        ))}
+          )
+        })}
       </div>
 
         {showCreateForm && (
@@ -268,6 +289,31 @@ export default function FormsPage() {
               <label className="mr-2">メタデータを保存</label>
               <input type="checkbox" className="p-2 border rounded" onChange={(e) => setCreateForm({...createForm, saveToMetadata: e.target.checked})} />
             </div>
+
+            <div>
+              <h3>送信時にリマインダへ登録</h3>
+              <div>
+                <label>リマインダ選択</label>
+                <select value={createForm.onSubmitReminderId} onChange={(e) => setCreateForm({...createForm, onSubmitReminderId: e.target.value})}>
+                  {reminders.map((reminder) => (
+                    <option key={reminder.id} value={reminder.id}>
+                      {reminder.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>基準日として使うフィールドの選択</label>
+                <select value={createForm.onSubmitReminderDateField} onChange={(e) => setCreateForm({...createForm, onSubmitReminderDateField: e.target.value})}>
+                  {createDateFields.map((field) => (
+                    <option key={field.name} value={field.name}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="flex gap-2 mt-4">
               <button type="button" className="px-4 py-2 bg-blue-500 text-white rounded" onClick={() => {handleCreateForm(createForm)}}>
                 作成
