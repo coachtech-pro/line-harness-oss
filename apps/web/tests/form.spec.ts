@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { remindersForm } from './mock-data/reminders-form'
+import { forms } from './mock-data/forms'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -13,6 +14,18 @@ test.beforeEach(async ({ page }) => {
     })
   })
 
+  await page.route('**/api/forms', async (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(forms),
+      })
+    }
+
+    return route.fallback()
+  })
+
   await page.goto('/forms')
   await expect(page.getByText('フォーム一覧')).toBeVisible()
 });
@@ -21,12 +34,15 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
   let requestBody: unknown
 
   await page.route('**/api/forms', async (route) => {
-    requestBody = route.request().postDataJSON()
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true }),
-    })
+    if (route.request().method() === 'POST') {
+      requestBody = route.request().postDataJSON()
+
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true }),
+      })
+    }
   })
   
   await page.getByText('新規作成').click()
@@ -39,7 +55,7 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
       {
         "name": "date",
         "type": "date",
-        "label": "日付"
+        "label": "日にち"
       },
       {
         "name": "name",
@@ -50,7 +66,7 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
   `)
   
   await expect(
-    page.getByRole('option', { name: '日付' })
+    page.getByRole('option', { name: '日にち' })
   ).toBeVisible()
 
   await expect(
@@ -72,7 +88,7 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
       {
         name: 'date',
         type: 'date',
-        label: '日付',
+        label: '日にち',
       }
     ],
     onSubmitTagId: 'tag1',
@@ -80,5 +96,71 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
     saveToMetadata: true,
     onSubmitReminderId: 'reminder-1',
     onSubmitReminderDateField: 'date',
+  })
+});
+
+test('フォーム編集時にリマインダ設定を保存できる', async ({ page }) => {
+  let requestBody: unknown
+
+  await page.route('**/api/forms/form1', async (route) => {
+    requestBody = route.request().postDataJSON()
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true }),
+    })
+  })
+  
+  await expect(page.getByText('テストフォーム')).toBeVisible()
+
+  await page.getByTestId('edit-form-fields-form1').fill(`
+    [
+      {
+        "name": "birthday",
+        "type": "date",
+        "label": "生年月日"
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "label": "名前"
+      }
+    ]
+  `)
+  
+  await expect(
+    page.getByRole('option', { name: '生年月日' })
+  ).toBeVisible()
+
+  await expect(
+    page.getByRole('option', { name: '名前' })
+  ).toHaveCount(0)
+
+  await expect(
+    page.getByRole('option', { name: '日付' })
+  ).toHaveCount(0)
+  
+  await page.getByTestId('edit-form-reminder-id-form1').selectOption('reminder-2')
+  await page.getByTestId('edit-form-reminder-date-field-form1').selectOption('birthday')
+  await page.getByTestId('edit-form-is-active-form1').uncheck()
+
+  await page.getByTestId('edit-form-submit-form1').click()
+
+  expect(requestBody).toMatchObject({
+    fields: [
+      {
+        "name": "birthday",
+        "type": "date",
+        "label": "生年月日"
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "label": "名前"
+      }
+    ],
+    isActive: false,
+    onSubmitReminderId: 'reminder-2',
+    onSubmitReminderDateField: 'birthday',
   })
 });

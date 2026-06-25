@@ -13,6 +13,7 @@ interface Form {
   onSubmitTagId?: string
   onSubmitScenarioId?: string
   saveToMetadata: boolean
+  isActive: boolean
   onSubmitReminderId?: string
   onSubmitReminderDateField?: string
 }
@@ -233,47 +234,58 @@ export default function FormsPage() {
                     value={form.onSubmitScenarioId}
                     onChange={(e) =>
                       setForms((prev) =>
-                      prev.map((f) =>
-                        f.id === form.id
-                          ? { ...f, onSubmitScenarioId: e.target.value }
-                          : f
+                        prev.map((f) =>
+                          f.id === form.id
+                            ? { ...f, onSubmitScenarioId: e.target.value }
+                            : f
+                        )
                       )
-                    )
-                  }
-                  data-testid={`edit-form-scenario-id-${form.id}`}
-                />
-              </div>
-  
-              <div className="space-y-2">
-                <h3>送信時にリマインダへ登録</h3>
-                <div>
-                  <label>リマインダ選択</label>
-                  <select value={form.onSubmitReminderId} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))} className="w-full p-2 border rounded" data-testid={`edit-form-reminder-id-${form.id}`}>
-                    {reminders.map((reminder) => (
-                      <option key={reminder.id} value={reminder.id}>
-                        {reminder.name}
-                      </option>
-                    ))}
-                  </select>
+                    }
+                    data-testid={`edit-form-scenario-id-${form.id}`}
+                  />
                 </div>
+
                 <div>
-                  <label>基準日として使うフィールドの選択</label>
-                  <select value={form.onSubmitReminderDateField} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))} className="w-full p-2 border rounded" data-testid={`edit-form-reminder-date-field-${form.id}`}>
-                    {editDateFields.map((field) => (
-                      <option key={field.name} value={field.name}>
-                        {field.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="mr-2">メタデータを保存</label>
+                  <input type="checkbox" className="p-2 border rounded" onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, saveToMetadata: e.target.checked } : f))} data-testid={`edit-form-save-to-metadata-${form.id}`} />
                 </div>
-              </div>
+
+                <div>
+                  <label className="mr-2">受付中</label>
+                  <input type="checkbox" className="p-2 border rounded" onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, isActive: e.target.checked } : f))} data-testid={`edit-form-is-active-${form.id}`} />
+                </div>
+
+                <div className="space-y-2">
+                  <h3>送信時にリマインダへ登録</h3>
+                  <div>
+                    <label>リマインダ選択</label>
+                    <select value={form.onSubmitReminderId} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))} className="w-full p-2 border rounded" data-testid={`edit-form-reminder-id-${form.id}`}>
+                      {reminders.map((reminder) => (
+                        <option key={reminder.id} value={reminder.id}>
+                          {reminder.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>基準日として使うフィールドの選択</label>
+                    <select value={form.onSubmitReminderDateField} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))} className="w-full p-2 border rounded" data-testid={`edit-form-reminder-date-field-${form.id}`}>
+                      {editDateFields.map((field) => (
+                        <option key={field.name} value={field.name}>
+                          {field.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
   
-              <button type="button" className="px-4 py-2 bg-green-500 text-white rounded" onClick={() => handleUpdateForm(form)}>
-                変更
-              </button>
-            </div>
-          )
-        })}
+                <button type="button" className="px-4 py-2 bg-green-500 text-white rounded" onClick={() => handleUpdateForm(form)}>
+                  変更
+                </button>
+              </div>
+            )
+          })
+        }
       </div>
 
         {showCreateForm && (
@@ -300,8 +312,10 @@ export default function FormsPage() {
                 <label>送信時シナリオ登録（シナリオID）</label>
                 <input type="text" className="w-full p-2 border rounded" onChange={(e) => setCreateForm({...createForm, onSubmitScenarioId: e.target.value})} data-testid="create-form-scenario-id"/>
               </div>
-              <label className="mr-2">メタデータを保存</label>
-              <input type="checkbox" className="p-2 border rounded" onChange={(e) => setCreateForm({...createForm, saveToMetadata: e.target.checked})} data-testid="create-form-save-to-metadata" />
+              <div>
+                <label className="mr-2">メタデータを保存</label>
+                <input type="checkbox" className="p-2 border rounded" onChange={(e) => setCreateForm({...createForm, saveToMetadata: e.target.checked})} data-testid="create-form-save-to-metadata" />
+              </div>
 
               <div className="space-y-2">
                 <h3>送信時にリマインダへ登録</h3>

@@ -8,8 +8,6 @@ CREATE TABLE IF NOT EXISTS forms (
   save_to_metadata INTEGER NOT NULL DEFAULT 1,
   is_active INTEGER NOT NULL DEFAULT 1,
   submit_count INTEGER NOT NULL DEFAULT 0,
-  on_submit_reminder_id TEXT REFERENCES reminders (id) ON DELETE SET NULL,
-  on_submit_reminder_date_field TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -24,3 +22,6 @@ CREATE TABLE IF NOT EXISTS form_submissions (
 
 CREATE INDEX IF NOT EXISTS idx_form_submissions_form ON form_submissions (form_id);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_friend ON form_submissions (friend_id);
+
+ALTER TABLE forms ADD COLUMN on_submit_reminder_id TEXT REFERENCES reminders (id) ON DELETE SET NULL;
+ALTER TABLE forms ADD COLUMN on_submit_reminder_date_field TEXT;
