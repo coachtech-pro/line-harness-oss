@@ -3,8 +3,8 @@ export const forms = {
   "data": [
     {
       "id": "form1",
-      "name": "テストフォーム",
-      "description": "フォーム1の説明",
+      "name": "テストフォームの名前",
+      "description": "テストフォームの説明",
       "fields": [
         {
           "name": "date",

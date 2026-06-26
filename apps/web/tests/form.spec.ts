@@ -65,13 +65,7 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
     ]
   `)
   
-  await expect(
-    page.getByRole('option', { name: '日にち' })
-  ).toBeVisible()
-
-  await expect(
-    page.getByRole('option', { name: '名前' })
-  ).toHaveCount(0)
+  await expect(page.getByTestId('create-form-reminder-date-field')).not.toContainText('名前')
   
   await page.getByTestId('create-form-tag-id').fill('tag1')
   await page.getByTestId('create-form-scenario-id').fill('scenario1')
@@ -89,6 +83,11 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
         name: 'date',
         type: 'date',
         label: '日にち',
+      },
+      {
+        name: 'name',
+        type: 'text',
+        label: '名前',
       }
     ],
     onSubmitTagId: 'tag1',
@@ -110,8 +109,10 @@ test('フォーム編集時にリマインダ設定を保存できる', async ({
       body: JSON.stringify({ success: true }),
     })
   })
-  
-  await expect(page.getByText('テストフォーム')).toBeVisible()
+
+  await expect(
+    page.getByTestId('edit-form-name-form1')
+  ).toHaveValue('テストフォームの名前')
 
   await page.getByTestId('edit-form-fields-form1').fill(`
     [
@@ -128,17 +129,8 @@ test('フォーム編集時にリマインダ設定を保存できる', async ({
     ]
   `)
   
-  await expect(
-    page.getByRole('option', { name: '生年月日' })
-  ).toBeVisible()
-
-  await expect(
-    page.getByRole('option', { name: '名前' })
-  ).toHaveCount(0)
-
-  await expect(
-    page.getByRole('option', { name: '日付' })
-  ).toHaveCount(0)
+  await expect(page.getByTestId('edit-form-reminder-date-field-form1')).not.toContainText('名前')
+  await expect(page.getByTestId('edit-form-reminder-date-field-form1')).not.toContainText('日付')
   
   await page.getByTestId('edit-form-reminder-id-form1').selectOption('reminder-2')
   await page.getByTestId('edit-form-reminder-date-field-form1').selectOption('birthday')

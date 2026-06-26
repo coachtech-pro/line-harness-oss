@@ -67,7 +67,6 @@ export interface CreateFormInput {
 export async function createForm(db: D1Database, input: CreateFormInput): Promise<Form> {
   const id = crypto.randomUUID();
   const now = jstNow();
-
   await db
     .prepare(
       `INSERT INTO forms
@@ -75,7 +74,7 @@ export async function createForm(db: D1Database, input: CreateFormInput): Promis
           on_submit_message_type, on_submit_message_content,
           on_submit_webhook_url, on_submit_webhook_headers, on_submit_webhook_fail_message,
           save_to_metadata, is_active, submit_count, on_submit_reminder_id, on_submit_reminder_date_field, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?)`,
     )
     .bind(
       id,
@@ -96,7 +95,6 @@ export async function createForm(db: D1Database, input: CreateFormInput): Promis
       now,
     )
     .run();
-
   return (await getFormById(db, id))!;
 }
 

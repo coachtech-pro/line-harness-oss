@@ -76,9 +76,17 @@ export default function FormsPage() {
   const handleCreateForm = async (form: CreateForm) => {
     try {
       const fields: FormField[] = JSON.parse(fieldsJson)
+      const body = {
+        ...form,
+        fields,
+        onSubmitTagId: form.onSubmitTagId || null,
+        onSubmitScenarioId: form.onSubmitScenarioId || null,
+        onSubmitReminderId: form.onSubmitReminderId || null,
+        onSubmitReminderDateField: form.onSubmitReminderDateField || null
+      }
       const res = await fetchApi<{ success: boolean; data: Form }>('/api/forms', {
         method: 'POST',
-        body: JSON.stringify({ ...form, fields })
+        body: JSON.stringify(body)
       })
       if (res.success) {
         setForms((prev) => [...prev, res.data])
@@ -109,9 +117,17 @@ export default function FormsPage() {
   const handleUpdateForm = async (form: Form) => {
     try {
       const fields: FormField[] = JSON.parse(fieldJsonMap[form.id])
+      const body = {
+          ...form,
+          fields,
+          onSubmitTagId: form.onSubmitTagId || null,
+          onSubmitScenarioId: form.onSubmitScenarioId || null,
+          onSubmitReminderId: form.onSubmitReminderId || null,
+          onSubmitReminderDateField: form.onSubmitReminderDateField || null
+        }
       const res = await fetchApi<{ success: boolean; data: Form }>(`/api/forms/${form.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ ...form, fields })
+        body: JSON.stringify(body)
       })
       if (res.success) {
         setForms((prev) => prev.map(f => f.id === form.id ? res.data : f))
@@ -176,6 +192,7 @@ export default function FormsPage() {
                         )
                       )
                     }
+                    className="w-full p-2 border rounded"
                     data-testid={`edit-form-name-${form.id}`}
                   />
                 </div>
@@ -193,6 +210,7 @@ export default function FormsPage() {
                         )
                       )
                     }
+                    className="w-full p-2 border rounded"
                     data-testid={`edit-form-description-${form.id}`}
                   />
                 </div>
@@ -207,6 +225,7 @@ export default function FormsPage() {
                         [form.id]: e.target.value
                       }))
                     }}
+                    className="w-full p-2 border rounded"
                     data-testid={`edit-form-fields-${form.id}`}
                   />
                 </div>
@@ -224,6 +243,7 @@ export default function FormsPage() {
                         )
                       )
                     }
+                    className="w-full p-2 border rounded"
                     data-testid={`edit-form-tag-id-${form.id}`}
                   />
                 </div>
@@ -241,25 +261,43 @@ export default function FormsPage() {
                         )
                       )
                     }
+                    className="w-full p-2 border rounded"
                     data-testid={`edit-form-scenario-id-${form.id}`}
                   />
                 </div>
 
                 <div>
                   <label className="mr-2">メタデータを保存</label>
-                  <input type="checkbox" className="p-2 border rounded" onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, saveToMetadata: e.target.checked } : f))} data-testid={`edit-form-save-to-metadata-${form.id}`} />
+                  <input
+                    type="checkbox"
+                    className="p-2 border rounded"
+                    onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, saveToMetadata: e.target.checked } : f))}
+                    checked={form.saveToMetadata}
+                    data-testid={`edit-form-save-to-metadata-${form.id}`}
+                  />
                 </div>
 
                 <div>
                   <label className="mr-2">受付中</label>
-                  <input type="checkbox" className="p-2 border rounded" onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, isActive: e.target.checked } : f))} data-testid={`edit-form-is-active-${form.id}`} />
+                  <input
+                    type="checkbox"
+                    className="p-2 border rounded"
+                    onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, isActive: e.target.checked } : f))}
+                    checked={form.isActive}
+                    data-testid={`edit-form-is-active-${form.id}`}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <h3>送信時にリマインダへ登録</h3>
                   <div>
                     <label>リマインダ選択</label>
-                    <select value={form.onSubmitReminderId} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))} className="w-full p-2 border rounded" data-testid={`edit-form-reminder-id-${form.id}`}>
+                    <select
+                      value={form.onSubmitReminderId}
+                      onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))}
+                      className="w-full p-2 border rounded"
+                      data-testid={`edit-form-reminder-id-${form.id}`}
+                    >
                       {reminders.map((reminder) => (
                         <option key={reminder.id} value={reminder.id}>
                           {reminder.name}
@@ -269,7 +307,12 @@ export default function FormsPage() {
                   </div>
                   <div>
                     <label>基準日として使うフィールドの選択</label>
-                    <select value={form.onSubmitReminderDateField} onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))} className="w-full p-2 border rounded" data-testid={`edit-form-reminder-date-field-${form.id}`}>
+                    <select
+                      value={form.onSubmitReminderDateField}
+                      onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))}
+                      className="w-full p-2 border rounded"
+                      data-testid={`edit-form-reminder-date-field-${form.id}`}
+                    >
                       {editDateFields.map((field) => (
                         <option key={field.name} value={field.name}>
                           {field.label}
@@ -279,7 +322,12 @@ export default function FormsPage() {
                   </div>
                 </div>
   
-                <button type="button" className="px-4 py-2 bg-green-500 text-white rounded" onClick={() => handleUpdateForm(form)}>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-green-500 text-white rounded"
+                  onClick={() => handleUpdateForm(form)}
+                  data-testid={`edit-form-submit-${form.id}`}
+                >
                   変更
                 </button>
               </div>
@@ -294,34 +342,68 @@ export default function FormsPage() {
             <div className="space-y-2">
               <div>
                 <label>フォーム名</label>
-                <input type="text" className="w-full p-2 border rounded" onChange={(e) => setCreateForm({...createForm, name: e.target.value})} data-testid="create-form-name"/>
+                <input
+                  type="text"
+                  className="w-full p-2 border rounded"
+                  onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
+                  data-testid="create-form-name"
+                />
               </div>
               <div>
                 <label>説明</label>
-                <textarea className="w-full p-2 border rounded" onChange={(e) => setCreateForm({...createForm, description: e.target.value})} data-testid="create-form-description"></textarea>
+                <textarea
+                  className="w-full p-2 border rounded"
+                  onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
+                  data-testid="create-form-description"
+                ></textarea>
               </div>
               <div>
                 <label>フィールド定義（JSON形式）</label>
-                <textarea className="w-full p-2 border rounded" onChange={(e) => setFieldsJson(e.target.value)} data-testid="create-form-fields"></textarea>
+                <textarea
+                  className="w-full p-2 border rounded"
+                  onChange={(e) => setFieldsJson(e.target.value)}
+                  data-testid="create-form-fields"
+                ></textarea>
               </div>
               <div>
                 <label>送信時タグ付与（タグID）</label>
-                <input type="text" className="w-full p-2 border rounded" onChange={(e) => setCreateForm({...createForm, onSubmitTagId: e.target.value})} data-testid="create-form-tag-id"/>
+                <input
+                  type="text"
+                  className="w-full p-2 border rounded"
+                  onChange={(e) => setCreateForm({...createForm, onSubmitTagId: e.target.value})}
+                  data-testid="create-form-tag-id"
+                />
               </div>
               <div>
                 <label>送信時シナリオ登録（シナリオID）</label>
-                <input type="text" className="w-full p-2 border rounded" onChange={(e) => setCreateForm({...createForm, onSubmitScenarioId: e.target.value})} data-testid="create-form-scenario-id"/>
+                <input
+                  type="text"
+                  className="w-full p-2 border rounded"
+                  onChange={(e) => setCreateForm({...createForm, onSubmitScenarioId: e.target.value})}
+                  data-testid="create-form-scenario-id"
+                />
               </div>
               <div>
                 <label className="mr-2">メタデータを保存</label>
-                <input type="checkbox" className="p-2 border rounded" onChange={(e) => setCreateForm({...createForm, saveToMetadata: e.target.checked})} data-testid="create-form-save-to-metadata" />
+                <input
+                  type="checkbox"
+                  className="p-2 border rounded"
+                  onChange={(e) => setCreateForm({...createForm, saveToMetadata: e.target.checked})}
+                  data-testid="create-form-save-to-metadata"
+                />
               </div>
 
               <div className="space-y-2">
                 <h3>送信時にリマインダへ登録</h3>
                 <div>
                   <label>リマインダ選択</label>
-                  <select value={createForm.onSubmitReminderId} onChange={(e) => setCreateForm({...createForm, onSubmitReminderId: e.target.value})} className="w-full p-2 border rounded" data-testid="create-form-reminder-id">
+                  <select
+                    value={createForm.onSubmitReminderId}
+                    onChange={(e) => setCreateForm({...createForm, onSubmitReminderId: e.target.value})}
+                    className="w-full p-2 border rounded"
+                    data-testid="create-form-reminder-id"
+                  >
+                    <option value="">選択してください</option>
                     {reminders.map((reminder) => (
                       <option key={reminder.id} value={reminder.id}>
                         {reminder.name}
@@ -331,7 +413,13 @@ export default function FormsPage() {
                 </div>
                 <div>
                   <label>基準日として使うフィールドの選択</label>
-                  <select value={createForm.onSubmitReminderDateField} onChange={(e) => setCreateForm({...createForm, onSubmitReminderDateField: e.target.value})} className="w-full p-2 border rounded" data-testid="create-form-reminder-date-field">
+                  <select
+                    value={createForm.onSubmitReminderDateField}
+                    onChange={(e) => setCreateForm({...createForm, onSubmitReminderDateField: e.target.value})}
+                    className="w-full p-2 border rounded"
+                    data-testid="create-form-reminder-date-field"
+                  >
+                    <option value="">選択してください</option>
                     {createDateFields.map((field) => (
                       <option key={field.name} value={field.name}>
                         {field.label}
@@ -343,10 +431,19 @@ export default function FormsPage() {
             </div>
 
             <div className="flex gap-2 mt-4">
-              <button type="button" className="px-4 py-2 bg-blue-500 text-white rounded" onClick={() => {handleCreateForm(createForm)}} data-testid="create-form-submit">
+              <button
+                type="button"
+                className="px-4 py-2 bg-blue-500 text-white rounded"
+                onClick={() => {handleCreateForm(createForm)}}
+                data-testid="create-form-submit"
+              >
                 作成
               </button>
-              <button type="button" className="px-4 py-2 bg-red-500 text-white rounded" onClick={() => {setShowCreateForm(false)}}>
+              <button
+                type="button"
+                className="px-4 py-2 bg-red-500 text-white rounded"
+                onClick={() => {setShowCreateForm(false)}}
+              >
                 キャンセル
               </button>
             </div>

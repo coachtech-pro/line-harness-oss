@@ -8,13 +8,7 @@ const updateForm = vi.fn();
 vi.mock('@line-crm/db', () => ({
   createForm,
   updateForm,
-}));
-
-vi.mock('@line-crm/db', () => ({
   enrollFriendInReminder,
-}));
-
-vi.mock('@line-crm/db', () => ({
   getFormById: vi.fn(async () => ({
     id: 'form-1',
     on_submit_reminder_id: 'reminder-1',
@@ -83,12 +77,11 @@ describe('POST /api/forms', () => {
 
   it('フォーム作成', async () => {
     const res = await addForm({
-      data: {
-        name: 'test-form',
-        description: 'test-form-description',
-        fields: [
-          {
-            name: 'birthday',
+      name: 'test-form',
+      description: 'test-form-description',
+      fields: [
+        {
+          name: 'birthday',
             type: 'date',
             label: '誕生日',
             required: true,
@@ -98,8 +91,7 @@ describe('POST /api/forms', () => {
         onSubmitReminderId: 'reminder-1',
         onSubmitReminderDateField: 'birthday',
       }
-    })
-    
+    )
     expect(res.status).toBe(200)
     expect(createForm).toHaveBeenCalledWith(
       expect.objectContaining({
