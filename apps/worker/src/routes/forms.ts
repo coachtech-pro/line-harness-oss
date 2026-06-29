@@ -10,9 +10,10 @@ import {
   jstNow,
 } from '@line-crm/db';
 import { getFriendByLineUserId, getFriendById } from '@line-crm/db';
-import { addTagToFriend, enrollFriendInScenario, enrollFriendInReminder } from '@line-crm/db';
+import { addTagToFriend, enrollFriendInScenario } from '@line-crm/db';
 import type { Form as DbForm, FormSubmission as DbFormSubmission } from '@line-crm/db';
 import type { Env } from '../index.js';
+import { handleReminderRegistration } from '../services/form-reminder.js';
 
 const forms = new Hono<Env>();
 
@@ -427,23 +428,13 @@ forms.post('/api/forms/:id/submit', async (c) => {
         sideEffects.push(enrollFriendInScenario(db, friendId, form.on_submit_scenario_id));
       }
 
-      if (form.on_submit_reminder_id && form.on_submit_reminder_date_field) {
-        const targetDate = submissionData[form.on_submit_reminder_date_field]
-        if (typeof targetDate === 'string') {
-          const date = new Date(targetDate)
-          const reminderTargetDate = `${targetDate}T00:00:00+09:00`
-          if (targetDate && !isNaN(date.getTime())) {
-            const existing = await db.prepare(`SELECT * FROM friend_reminders WHERE friend_id = ? AND reminder_id = ?`).bind(friendId, form.on_submit_reminder_id).first()
-            if (existing) {
-              await db.prepare(`UPDATE friend_reminders SET target_date = ? WHERE id = ?`).bind(reminderTargetDate, existing.id).run()
-            } else {
-              sideEffects.push(enrollFriendInReminder(db, { friendId, reminderId: form.on_submit_reminder_id, targetDate: reminderTargetDate }))
-            }
-          } else {
-            console.error('Invalid date format for reminder', { targetDate, formId: form.id })
-          }
-        }
-      }
+      handleReminderRegistration({
+        db,
+        form,
+        submissionData,
+        friendId,
+        sideEffects
+      })
 
       // If webhook returned a join_url (e.g. Meet Harness), send a Flex button to the user
       if (webhookData?.join_url) {

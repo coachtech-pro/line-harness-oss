@@ -298,6 +298,7 @@ export default function FormsPage() {
                       className="w-full p-2 border rounded"
                       data-testid={`edit-form-reminder-id-${form.id}`}
                     >
+                      <option value="">選択してください</option>
                       {reminders.map((reminder) => (
                         <option key={reminder.id} value={reminder.id}>
                           {reminder.name}
@@ -313,6 +314,7 @@ export default function FormsPage() {
                       className="w-full p-2 border rounded"
                       data-testid={`edit-form-reminder-date-field-${form.id}`}
                     >
+                      <option value="">選択してください</option>
                       {editDateFields.map((field) => (
                         <option key={field.name} value={field.name}>
                           {field.label}
