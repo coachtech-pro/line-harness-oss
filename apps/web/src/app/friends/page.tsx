@@ -30,6 +30,11 @@ const ccPrompts = [
 
 const PAGE_SIZE = 20
 
+export interface Reminder {
+  id: string
+  name: string
+}
+
 export default function FriendsPage() {
   const { selectedAccountId } = useAccount()
   const [friends, setFriends] = useState<FriendWithTags[]>([])
@@ -40,6 +45,7 @@ export default function FriendsPage() {
   const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reminders, setReminders] = useState<Reminder[]>([])
 
   const loadTags = useCallback(async () => {
     try {
@@ -76,6 +82,23 @@ export default function FriendsPage() {
     }
   }, [page, selectedTagId, selectedAccountId])
 
+  const loadReminders = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.reminders.list({ accountId: selectedAccountId || undefined })
+      if (res.success) {
+        setReminders(res.data)
+      } else {
+        setError(res.error)
+      }
+    } catch {
+      setError('リマインダーの読み込みに失敗しました。もう一度お試しください。')
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedAccountId])
+
   useEffect(() => {
     loadTags()
   }, [loadTags])
@@ -87,6 +110,10 @@ export default function FriendsPage() {
   useEffect(() => {
     loadFriends()
   }, [loadFriends])
+  
+  useEffect(() => {
+    loadReminders()
+  }, [loadReminders])
 
   const handleTagFilter = (tagId: string) => {
     setSelectedTagId(tagId)
@@ -144,6 +171,7 @@ export default function FriendsPage() {
           friends={friends}
           allTags={allTags}
           onRefresh={loadFriends}
+          reminders={reminders}
         />
       )}
 
