@@ -257,7 +257,7 @@ export default function FriendTable({ friends, allTags, onRefresh, reminders }: 
                   <td className="px-4 py-3 text-right">
                     <svg
                       className={`w-4 h-4 text-gray-400 transition-transform inline-block ${isExpanded ? 'rotate-180' : ''}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24" data-testid={`expanded-icon-${friend.id}`}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -336,6 +336,7 @@ export default function FriendTable({ friends, allTags, onRefresh, reminders }: 
                               className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                               value={addFriendReminder.reminderId}
                               onChange={(e) => setAddFriendReminder({ ...addFriendReminder, reminderId: e.target.value })}
+                              data-testid="reminders-select"
                             >
                               <option value="">リマインダを選択</option>
                               {reminders.map((reminder) => (
@@ -344,7 +345,6 @@ export default function FriendTable({ friends, allTags, onRefresh, reminders }: 
                                 </option>
                               ))}
                             </select>
-
                             <div>
                               <label className="text-xs text-gray-500">基準日</label>
                               <input
@@ -352,11 +352,13 @@ export default function FriendTable({ friends, allTags, onRefresh, reminders }: 
                                 className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                                 value={addFriendReminder.targetDate}
                                 onChange={(e) => setAddFriendReminder({ ...addFriendReminder, targetDate: e.target.value })}
+                                data-testid="target-date-input"
                               />
                             </div>
                             <button
                               className="px-2 py-1 text-xs bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
                               onClick={() => handleAddFriendReminder(friend.id)}
+                              data-testid="add-reminder-button"
                             >
                               登録
                             </button>
@@ -367,26 +369,34 @@ export default function FriendTable({ friends, allTags, onRefresh, reminders }: 
                           {(registeredReminders.length === 0) ? (
                             <p className="text-xs text-gray-500">登録中のリマインダはありません</p>
                           ) : (
-                            <div className="space-y-2">
-                              <tr className="font-semibold text-xs text-gray-500 text-left">
-                                <th className="pr-4 py-1">リマインダ名</th>
-                                <th className="px-4 py-1">基準日</th>
-                                <th className="px-4 py-1">状態</th>
-                                <th className="px-4 py-1"></th>
-                              </tr>
+                            <table className="space-y-2" data-testid="registered-reminders-table">
+                              <thead>
+                                <tr className="font-semibold text-xs text-gray-500 text-left">
+                                  <th className="pr-4 py-1">リマインダ名</th>
+                                  <th className="px-4 py-1">基準日</th>
+                                  <th className="px-4 py-1">状態</th>
+                                  <th className="px-4 py-1"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
                               {registeredReminders.map((registeredReminder) => (
                                 <tr key={registeredReminder.id} className="text-xs text-gray-500 text-left">
                                   <td className="pr-4 py-1">{reminders.find((reminder) => reminder.id === registeredReminder.reminderId)?.name}</td>
                                   <td className="px-4 py-1">{formatDate(registeredReminder.targetDate)}</td>
                                   <td className="px-4 py-1">{registeredReminder.status}</td>
                                   <td className="px-4 py-1">
-                                    <button onClick={() => handleDeleteFriendReminder(registeredReminder.id)} className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">
+                                    <button
+                                      onClick={() => handleDeleteFriendReminder(registeredReminder.id)}
+                                      className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                                      data-testid={`delete-friend-reminder-button-${registeredReminder.id}`}
+                                    >
                                       解除
                                     </button>
                                   </td>
                                 </tr>
                               ))}
-                            </div>
+                              </tbody>
+                            </table>
                           )}
                         </div>
                       </div>
