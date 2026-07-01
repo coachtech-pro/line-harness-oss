@@ -329,7 +329,7 @@ export default function RemindersPage() {
     try {
       const filteredTagFriends = allFriends.filter((friend) => friend.tags.some((tag) => tag.id === friendForm.tagId))
       
-      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate + ':00.000+09:00') ?? []
+      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate + ':00+09:00') ?? []
 
       const skippedFriends = new Set(
         filteredTargetDateFriends.filter((f) => f.status !== 'cancelled').map((f) => f.friendId)
@@ -345,7 +345,7 @@ export default function RemindersPage() {
 
       for (const friend of newFriends) {
         const res = await api.reminders.addFriend(expandedId, friend.id, {
-          targetDate: friendForm.targetDate + ':00.000+09:00',
+          targetDate: friendForm.targetDate + ':00+09:00',
         })
         if (res.success) {
           successCount++

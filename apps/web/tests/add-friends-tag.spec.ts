@@ -80,9 +80,9 @@ test('対象タグの全友だちを登録し、登録済みの友だちはス�
   
   expect(requests).toHaveLength(3)
 
-  expect(requests[0].body.targetDate).toBe('2026-01-01T10:00:00.000+09:00')
-  expect(requests[1].body.targetDate).toBe('2026-01-01T10:00:00.000+09:00')
-  expect(requests[2].body.targetDate).toBe('2026-01-01T10:00:00.000+09:00')
+  expect(requests[0].body.targetDate).toBe('2026-01-01T10:00:00+09:00')
+  expect(requests[1].body.targetDate).toBe('2026-01-01T10:00:00+09:00')
+  expect(requests[2].body.targetDate).toBe('2026-01-01T10:00:00+09:00')
 
   expect(requests[0].url).toContain('reminder-1')
   expect(requests[1].url).toContain('reminder-1')
