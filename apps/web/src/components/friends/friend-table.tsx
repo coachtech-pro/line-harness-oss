@@ -12,6 +12,11 @@ interface FriendTableProps {
   onRefresh: () => void
 }
 
+interface AddNewTag {
+  name: string
+  color: string
+}
+
 export default function FriendTable({ friends, allTags, onRefresh }: FriendTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingTagForFriend, setAddingTagForFriend] = useState<string | null>(null)
@@ -19,12 +24,15 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [addNewTagForm, setAddNewTagForm] = useState(false)
+  const [addNewTag, setAddNewTag] = useState<AddNewTag>({ name: '', color: '' })
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
     setAddingTagForFriend(null)
     setSelectedTagId('')
     setError('')
+    setAddNewTagForm(false)
+    setAddNewTag({ name: '', color: '' })
   }
 
   const handleAddTag = async (friendId: string) => {
@@ -62,6 +70,27 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
       month: '2-digit',
       day: '2-digit',
     })
+  }
+
+  const handleAddNewTag = async (friendId: string) => {
+    if (!addNewTag.name) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.tags.create({ name: addNewTag.name, color: addNewTag.color || undefined })
+      if (res.success) {
+        const newTagId = res.data.id
+        await api.friends.addTag(friendId, newTagId)
+      }
+      setAddNewTagForm(false)
+      setAddNewTag({ name: '', color: '' })
+      setAddingTagForFriend(null)
+      onRefresh()
+    } catch {
+      setError('タグの作成に失敗しました')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (friends.length === 0) {
@@ -242,15 +271,27 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                       type="text"
                                       id="new-tag-name"
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                      onChange={(e) => setAddNewTag({ ...addNewTag, name: e.target.value })}
                                     />
                                     <label htmlFor="new-tag-color" className="text-xs text-gray-500">色</label>
                                     <input
                                       type="text"
                                       id="new-tag-color"
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                      onChange={(e) => setAddNewTag({ ...addNewTag, color: e.target.value })}
                                     />
-                                    <button className="px-3 py-1 text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 transition-colors">保存</button>
-                                    <button className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors" onClick={() => setAddNewTagForm(false)}>キャンセル</button>
+                                    <button
+                                      onClick={() => handleAddNewTag(friend.id)}
+                                      className="px-3 py-1 text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 transition-colors"
+                                    >
+                                      保存
+                                    </button>
+                                    <button
+                                      onClick={() => setAddNewTagForm(false)}
+                                      className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
+                                    >
+                                      キャンセル
+                                    </button>
                                   </div>
                                 )}
                               </div>

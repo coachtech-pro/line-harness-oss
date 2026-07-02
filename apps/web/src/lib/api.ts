@@ -116,7 +116,7 @@ export const api = {
   tags: {
     list: () =>
       fetchApi<ApiResponse<Tag[]>>('/api/tags'),
-    create: (data: { name: string; color: string }) =>
+    create: (data: { name: string; color?: string }) =>
       fetchApi<ApiResponse<Tag>>('/api/tags', {
         method: 'POST',
         body: JSON.stringify(data),
