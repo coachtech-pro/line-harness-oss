@@ -18,6 +18,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
   const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [addNewTagForm, setAddNewTagForm] = useState(false)
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -202,46 +203,82 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                             ))}
                           </div>
 
-                          {isAddingTag ? (
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <select
-                                className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                value={selectedTagId}
-                                onChange={(e) => setSelectedTagId(e.target.value)}
-                              >
-                                <option value="">タグを選択...</option>
-                                {availableTags.map((tag) => (
-                                  <option key={tag.id} value={tag.id}>{tag.name}</option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => handleAddTag(friend.id)}
-                                disabled={!selectedTagId || loading}
-                                className="px-3 py-1 text-xs font-medium rounded-md text-white disabled:opacity-50 transition-opacity"
-                                style={{ backgroundColor: '#06C755' }}
-                              >
-                                追加
-                              </button>
-                              <button
-                                onClick={() => { setAddingTagForFriend(null); setSelectedTagId('') }}
-                                className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
-                              >
-                                キャンセル
-                              </button>
+                          {isAddingTag && (
+                            <div className="space-y-4">
+                              {availableTags.length > 0 && (
+                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <select
+                                    className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    value={selectedTagId}
+                                    onChange={(e) => setSelectedTagId(e.target.value)}
+                                  >
+                                    <option value="">タグを選択...</option>
+                                    {availableTags.map((tag) => (
+                                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => handleAddTag(friend.id)}
+                                    disabled={!selectedTagId || loading}
+                                    className="px-3 py-1 text-xs font-medium rounded-md text-white disabled:opacity-50 transition-opacity"
+                                    style={{ backgroundColor: '#06C755' }}
+                                  >
+                                    追加
+                                  </button>
+                                  <button
+                                    onClick={() => { setAddingTagForFriend(null); setSelectedTagId('') }}
+                                    className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
+                                  >
+                                    キャンセル
+                                  </button>
+                                </div>
+                              )}
+                              <div>
+                                <button onClick={() => setAddNewTagForm(true)} className="text-xs text-gray-500 mb-2">+ 新規タグを作成</button>
+                                {addNewTagForm && (
+                                  <div className="flex items-center gap-2">
+                                    <label htmlFor="new-tag-name" className="text-xs text-gray-500">名前</label>
+                                    <input
+                                      type="text"
+                                      id="new-tag-name"
+                                      className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                    />
+                                    <label htmlFor="new-tag-color" className="text-xs text-gray-500">色</label>
+                                    <input
+                                      type="text"
+                                      id="new-tag-color"
+                                      className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                    />
+                                    <button className="px-3 py-1 text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 transition-colors">保存</button>
+                                    <button className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors" onClick={() => setAddNewTagForm(false)}>キャンセル</button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ) : (
-                            availableTags.length > 0 && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setAddingTagForFriend(friend.id) }}
-                                className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                タグを追加
-                              </button>
-                            )
                           )}
+                          <div className="space-y-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setAddingTagForFriend(friend.id); if (availableTags.length === 0) setAddNewTagForm(true); }}
+                              className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              タグを追加
+                            </button>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-2">タグ一覧</p>
+                              {allTags.length === 0 ? (
+                                <p className="text-xs text-gray-500 mb-2">タグがありません</p>
+                              ) : (
+                                <ul className="space-y-1 text-xs text-gray-500">
+                                  {allTags.map((tag) => (
+                                    <li key={tag.id}>{tag.name}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </td>
