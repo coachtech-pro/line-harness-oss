@@ -208,7 +208,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                   <td className="px-4 py-3 text-right">
                     <svg
                       className={`w-4 h-4 text-gray-400 transition-transform inline-block ${isExpanded ? 'rotate-180' : ''}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24" data-testid={`expanded-icon-${friend.id}`}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -272,17 +272,17 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                 <button onClick={() => setCreateTagForm(true)} className="text-xs text-gray-500 mb-2">+ 新規タグを作成</button>
                                 {createTagForm && (
                                   <div className="flex items-center gap-2">
-                                    <label htmlFor="new-tag-name" className="text-xs text-gray-500">名前</label>
+                                    <label htmlFor={`tag-name-${friend.id}`} className="text-xs text-gray-500">名前</label>
                                     <input
                                       type="text"
-                                      id="new-tag-name"
+                                      id={`tag-name-${friend.id}`}
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
                                       onChange={(e) => setCreateTag({ ...createTag, name: e.target.value })}
                                     />
-                                    <label htmlFor="new-tag-color" className="text-xs text-gray-500">色</label>
+                                    <label htmlFor={`tag-color-${friend.id}`} className="text-xs text-gray-500">色</label>
                                     <input
                                       type="text"
-                                      id="new-tag-color"
+                                      id={`tag-color-${friend.id}`}
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
                                       onChange={(e) => setCreateTag({ ...createTag, color: e.target.value })}
                                     />
@@ -293,7 +293,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                       保存
                                     </button>
                                     <button
-                                      onClick={() => setCreateTagForm(false)}
+                                      onClick={() => { setCreateTagForm(false); setCreateTag({ name: '', color: '' }); }}
                                       className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
                                     >
                                       キャンセル
@@ -313,18 +313,6 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                               </svg>
                               タグを追加
                             </button>
-                            <div>
-                              <p className="text-xs text-gray-500 mb-2">タグ一覧</p>
-                              {allTags.length === 0 ? (
-                                <p className="text-xs text-gray-500 mb-2">タグがありません</p>
-                              ) : (
-                                <ul className="space-y-1 text-xs text-gray-500">
-                                  {allTags.map((tag) => (
-                                    <li key={tag.id}>{tag.name}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
                           </div>
                         </div>
                       </div>
