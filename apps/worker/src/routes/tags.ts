@@ -28,7 +28,7 @@ tags.get('/api/tags', async (c) => {
 // POST /api/tags - create tag
 tags.post('/api/tags', async (c) => {
   try {
-    const body = await c.req.json<{ name: string; color?: string }>();
+    const body = await c.req.json<{ name: string; color?: string; lineAccountId?: string | null }>();
 
     if (!body.name) {
       return c.json({ success: false, error: 'name is required' }, 400);
@@ -38,6 +38,11 @@ tags.post('/api/tags', async (c) => {
       name: body.name,
       color: body.color,
     });
+
+    if (body.lineAccountId) {
+      await c.env.DB.prepare(`UPDATE tags SET line_account_id = ? WHERE id = ?`)
+        .bind(body.lineAccountId, tag.id).run();
+    }
 
     return c.json({ success: true, data: serializeTag(tag) }, 201);
   } catch (err) {

@@ -5,6 +5,7 @@ import type { Tag } from '@line-crm/shared'
 import type { FriendWithTags } from '@/lib/api'
 import { api } from '@/lib/api'
 import TagBadge from './tag-badge'
+import { useAccount } from '@/contexts/account-context'
 
 interface FriendTableProps {
   friends: FriendWithTags[]
@@ -12,27 +13,28 @@ interface FriendTableProps {
   onRefresh: () => void
 }
 
-interface AddNewTag {
+interface createTag {
   name: string
   color: string
 }
 
 export default function FriendTable({ friends, allTags, onRefresh }: FriendTableProps) {
+  const { selectedAccountId } = useAccount()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingTagForFriend, setAddingTagForFriend] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [addNewTagForm, setAddNewTagForm] = useState(false)
-  const [addNewTag, setAddNewTag] = useState<AddNewTag>({ name: '', color: '' })
+  const [createTagForm, setCreateTagForm] = useState(false)
+  const [createTag, setCreateTag] = useState<createTag>({ name: '', color: '' })
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
     setAddingTagForFriend(null)
     setSelectedTagId('')
     setError('')
-    setAddNewTagForm(false)
-    setAddNewTag({ name: '', color: '' })
+    setCreateTagForm(false)
+    setCreateTag({ name: '', color: '' })
   }
 
   const handleAddTag = async (friendId: string) => {
@@ -72,18 +74,22 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
     })
   }
 
-  const handleAddNewTag = async (friendId: string) => {
-    if (!addNewTag.name) return
+  const handleCreateTag = async (friendId: string) => {
+    if (!createTag.name) return
     setLoading(true)
     setError('')
     try {
-      const res = await api.tags.create({ name: addNewTag.name, color: addNewTag.color || undefined })
+      const res = await api.tags.create({
+        name: createTag.name,
+        color: createTag.color || undefined,
+        lineAccountId: selectedAccountId || undefined,
+      })
       if (res.success) {
         const newTagId = res.data.id
         await api.friends.addTag(friendId, newTagId)
       }
-      setAddNewTagForm(false)
-      setAddNewTag({ name: '', color: '' })
+      setCreateTagForm(false)
+      setCreateTag({ name: '', color: '' })
       setAddingTagForFriend(null)
       onRefresh()
     } catch {
@@ -263,31 +269,31 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                 </div>
                               )}
                               <div>
-                                <button onClick={() => setAddNewTagForm(true)} className="text-xs text-gray-500 mb-2">+ 新規タグを作成</button>
-                                {addNewTagForm && (
+                                <button onClick={() => setCreateTagForm(true)} className="text-xs text-gray-500 mb-2">+ 新規タグを作成</button>
+                                {createTagForm && (
                                   <div className="flex items-center gap-2">
                                     <label htmlFor="new-tag-name" className="text-xs text-gray-500">名前</label>
                                     <input
                                       type="text"
                                       id="new-tag-name"
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
-                                      onChange={(e) => setAddNewTag({ ...addNewTag, name: e.target.value })}
+                                      onChange={(e) => setCreateTag({ ...createTag, name: e.target.value })}
                                     />
                                     <label htmlFor="new-tag-color" className="text-xs text-gray-500">色</label>
                                     <input
                                       type="text"
                                       id="new-tag-color"
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
-                                      onChange={(e) => setAddNewTag({ ...addNewTag, color: e.target.value })}
+                                      onChange={(e) => setCreateTag({ ...createTag, color: e.target.value })}
                                     />
                                     <button
-                                      onClick={() => handleAddNewTag(friend.id)}
+                                      onClick={() => handleCreateTag(friend.id)}
                                       className="px-3 py-1 text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 transition-colors"
                                     >
                                       保存
                                     </button>
                                     <button
-                                      onClick={() => setAddNewTagForm(false)}
+                                      onClick={() => setCreateTagForm(false)}
                                       className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
                                     >
                                       キャンセル
@@ -299,7 +305,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                           )}
                           <div className="space-y-2">
                             <button
-                              onClick={(e) => { e.stopPropagation(); setAddingTagForFriend(friend.id); if (availableTags.length === 0) setAddNewTagForm(true); }}
+                              onClick={(e) => { e.stopPropagation(); setAddingTagForFriend(friend.id); if (availableTags.length === 0) setCreateTagForm(true); }}
                               className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
