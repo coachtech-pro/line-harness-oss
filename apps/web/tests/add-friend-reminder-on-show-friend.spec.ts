@@ -76,9 +76,14 @@ test('現在登録中のリマインダ一覧が表示され、解除もでき�
 
   const table = page.getByTestId('registered-reminders-table');
 
-  await expect(table.getByRole('cell', { name: '誕生日' })).toHaveCount(2);
+  await expect(table.getByRole('cell', { name: '誕生日' })).toHaveCount(3);
   await expect(table.getByRole('cell', { name: '2026/06/02' })).toBeVisible();
-  await expect(table.getByRole('cell', { name: 'active' })).toBeVisible();
+  await expect(page.getByTestId('friend-reminder-status-friend-reminder-1')).toContainText('配信中');
+  await expect(page.getByTestId('friend-reminder-status-friend-reminder-2')).toContainText('完了');
+  await expect(page.getByTestId('friend-reminder-status-friend-reminder-3')).toContainText('解除済み');
+  await expect(page.getByTestId('friend-reminder-cancel-button-friend-reminder-1')).toBeVisible();
+  await expect(page.getByTestId('friend-reminder-cancel-button-friend-reminder-2')).not.toContainText('解除');
+  await expect(page.getByTestId('friend-reminder-cancel-button-friend-reminder-3')).not.toContainText('解除');
 
   await page.getByTestId('delete-friend-reminder-button-friend-reminder-1').click();
   

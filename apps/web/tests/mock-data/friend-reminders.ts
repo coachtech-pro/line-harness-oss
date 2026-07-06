@@ -26,6 +26,13 @@ export const friendReminders = {
       id: "friend-reminder-2",
       friendId: "friend-1",
       reminderId: "reminder-1",
+      targetDate: "2026-06-01T11:00:00+09:00",
+      status: "completed",
+    },
+    {
+      id: "friend-reminder-3",
+      friendId: "friend-1",
+      reminderId: "reminder-1",
       targetDate: "2026-06-03T11:00:00+09:00",
       status: "cancelled",
     },
