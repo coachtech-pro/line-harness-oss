@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { tags, friends } from "./mock-data/friend-tags";
+import { lineAccounts } from "./mock-data/line-accounts";
 
 let requestBody: any
 let friendsTagRequestBody: any
@@ -7,7 +8,14 @@ let friendsTagRequestBody: any
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("lh_api_key", "test-key");
-    localStorage.setItem("lh_selected_account", "test-line-account-id");
+    localStorage.setItem("lh_selected_account", "test-line-account-id-2");
+  });
+
+  await page.route("**/api/line-accounts", async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: lineAccounts,
+    });
   });
 
   await page.route("**/api/friends?offset=0&limit=20", async (route) => {
@@ -58,10 +66,12 @@ test("「+ 新規タグを作成」項目を選択で新規タグを作成でき
   await page.locator("#tag-color-friend-1").fill("#ff0000");
   await page.getByRole("button", { name: "保存" }).click();
 
+  await page.waitForResponse("**/api/friends/friend-1/tags");
+
   expect(requestBody).toEqual({
     name: "新規タグ",
     color: "#ff0000",
-    lineAccountId: "test-line-account-id",
+    lineAccountId: "test-line-account-id-2",
   });
 
   expect(friendsTagRequestBody).toEqual({
@@ -79,9 +89,11 @@ test("色を入力しなくてもタグを作成できる", async ({ page }) => 
   await page.locator("#tag-name-friend-1").fill("色指定なしタグ");
   await page.getByRole("button", { name: "保存" }).click();
 
+  await page.waitForResponse("**/api/friends/friend-1/tags");
+
   expect(requestBody).toEqual({
     name: "色指定なしタグ",
-    lineAccountId: "test-line-account-id",
+    lineAccountId: "test-line-account-id-2",
   });
 
   expect(friendsTagRequestBody).toEqual({
