@@ -5,6 +5,7 @@ import type { Tag } from '@line-crm/shared'
 import type { FriendWithTags } from '@/lib/api'
 import { api } from '@/lib/api'
 import TagBadge from './tag-badge'
+import { useAccount } from '@/contexts/account-context'
 
 interface FriendTableProps {
   friends: FriendWithTags[]
@@ -12,18 +13,28 @@ interface FriendTableProps {
   onRefresh: () => void
 }
 
+interface CreateTagForm {
+  name: string
+  color: string
+}
+
 export default function FriendTable({ friends, allTags, onRefresh }: FriendTableProps) {
+  const { selectedAccountId } = useAccount()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingTagForFriend, setAddingTagForFriend] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [createTagForm, setCreateTagForm] = useState(false)
+  const [createTag, setCreateTag] = useState<CreateTagForm>({ name: '', color: '' })
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
     setAddingTagForFriend(null)
     setSelectedTagId('')
     setError('')
+    setCreateTagForm(false)
+    setCreateTag({ name: '', color: '' })
   }
 
   const handleAddTag = async (friendId: string) => {
@@ -61,6 +72,38 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
       month: '2-digit',
       day: '2-digit',
     })
+  }
+
+  const handleCreateTag = async (friendId: string) => {
+    if (!createTag.name || loading) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.tags.create({
+        name: createTag.name,
+        color: createTag.color || undefined,
+        lineAccountId: selectedAccountId || undefined,
+      })
+      if (!res.success) {
+        setError('タグの作成に失敗しました')
+        return
+      }
+      try {
+        await api.friends.addTag(friendId, res.data.id)
+      } catch {
+        setError('タグは作成されましたが、友だちへの付与に失敗しました')
+        onRefresh()
+        return
+      }
+      setCreateTagForm(false)
+      setCreateTag({ name: '', color: '' })
+      setAddingTagForFriend(null)
+      onRefresh()
+    } catch {
+      setError('タグの作成に失敗しました')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (friends.length === 0) {
@@ -172,7 +215,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                   <td className="px-4 py-3 text-right">
                     <svg
                       className={`w-4 h-4 text-gray-400 transition-transform inline-block ${isExpanded ? 'rotate-180' : ''}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24" data-testid={`expanded-icon-${friend.id}`}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -202,45 +245,84 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                             ))}
                           </div>
 
-                          {isAddingTag ? (
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <select
-                                className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                value={selectedTagId}
-                                onChange={(e) => setSelectedTagId(e.target.value)}
-                              >
-                                <option value="">タグを選択...</option>
-                                {availableTags.map((tag) => (
-                                  <option key={tag.id} value={tag.id}>{tag.name}</option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => handleAddTag(friend.id)}
-                                disabled={!selectedTagId || loading}
-                                className="px-3 py-1 text-xs font-medium rounded-md text-white disabled:opacity-50 transition-opacity"
-                                style={{ backgroundColor: '#06C755' }}
-                              >
-                                追加
-                              </button>
-                              <button
-                                onClick={() => { setAddingTagForFriend(null); setSelectedTagId('') }}
-                                className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
-                              >
-                                キャンセル
-                              </button>
+                          {isAddingTag && (
+                            <div className="space-y-4">
+                              {availableTags.length > 0 && (
+                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <select
+                                    className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    value={selectedTagId}
+                                    onChange={(e) => setSelectedTagId(e.target.value)}
+                                  >
+                                    <option value="">タグを選択...</option>
+                                    {availableTags.map((tag) => (
+                                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => handleAddTag(friend.id)}
+                                    disabled={!selectedTagId || loading}
+                                    className="px-3 py-1 text-xs font-medium rounded-md text-white disabled:opacity-50 transition-opacity"
+                                    style={{ backgroundColor: '#06C755' }}
+                                  >
+                                    追加
+                                  </button>
+                                  <button
+                                    onClick={() => { setAddingTagForFriend(null); setSelectedTagId('') }}
+                                    className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
+                                  >
+                                    キャンセル
+                                  </button>
+                                </div>
+                              )}
+                              <div>
+                                <button onClick={() => setCreateTagForm(true)} className="text-xs text-gray-500 mb-2">+ 新規タグを作成</button>
+                                {createTagForm && (
+                                  <div className="flex items-center gap-2">
+                                    <label htmlFor={`tag-name-${friend.id}`} className="text-xs text-gray-500">名前</label>
+                                    <input
+                                      type="text"
+                                      id={`tag-name-${friend.id}`}
+                                      className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                      value={createTag.name}
+                                      onChange={(e) => setCreateTag({ ...createTag, name: e.target.value })}
+                                    />
+                                    <label htmlFor={`tag-color-${friend.id}`} className="text-xs text-gray-500">色</label>
+                                    <input
+                                      type="text"
+                                      id={`tag-color-${friend.id}`}
+                                      className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                      value={createTag.color}
+                                      onChange={(e) => setCreateTag({ ...createTag, color: e.target.value })}
+                                    />
+                                    <button
+                                      onClick={() => handleCreateTag(friend.id)}
+                                      disabled={!createTag.name || loading}
+                                      className="px-3 py-1 text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                                    >
+                                      保存
+                                    </button>
+                                    <button
+                                      onClick={() => { setCreateTagForm(false); setCreateTag({ name: '', color: '' }); }}
+                                      className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
+                                    >
+                                      キャンセル
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ) : (
-                            availableTags.length > 0 && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setAddingTagForFriend(friend.id) }}
-                                className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                タグを追加
-                              </button>
-                            )
+                          )}
+                          {!isAddingTag && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setAddingTagForFriend(friend.id); if (availableTags.length === 0) setCreateTagForm(true); }}
+                              className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              タグを追加
+                            </button>
                           )}
                         </div>
                       </div>
