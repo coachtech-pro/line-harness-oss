@@ -60,6 +60,16 @@ export default function FormsPage() {
   const [fieldsJson, setFieldsJson] = useState('[]')
   const [fieldJsonMap, setFieldJsonMap] = useState<Record<string, string>>({})
   const [reminders, setReminders] = useState<Reminder[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  const parseFields = (json: string): FormField[] | null => {
+    try {
+      return JSON.parse(json)
+    } catch {
+      setError('フィールド定義のJSONが不正です')
+      return null
+    }
+  }
 
   const loadForms = useCallback(async () => {
     try {
@@ -74,8 +84,9 @@ export default function FormsPage() {
   }, [])
 
   const handleCreateForm = async (form: CreateForm) => {
+    const fields = parseFields(fieldsJson)
+    if (!fields) return
     try {
-      const fields: FormField[] = JSON.parse(fieldsJson)
       const body = {
         ...form,
         fields,
@@ -89,15 +100,18 @@ export default function FormsPage() {
         body: JSON.stringify(body)
       })
       if (res.success) {
-        setForms((prev) => [...prev, res.data])
+        setError(null)
 
-        setFieldJsonMap((prev) => ({
-          ...prev,
-          [res.data.id]: JSON.stringify(res.data.fields, null, 2)
-        }))
-      
+        if (res.data) {
+          setForms((prev) => [...prev, res.data])
+          setFieldJsonMap((prev) => ({
+            ...prev,
+            [res.data.id]: JSON.stringify(res.data.fields, null, 2)
+          }))
+        }
+
         setShowCreateForm(false)
-      
+
         setCreateForm({
           name: '',
           description: '',
@@ -108,15 +122,20 @@ export default function FormsPage() {
           onSubmitReminderId: '',
           onSubmitReminderDateField: '',
         })
-      
+
         setFieldsJson('[]')
+      } else {
+        setError('フォームの作成に失敗しました')
       }
-    } catch { /* silent */ }
+    } catch {
+      setError('フォームの作成に失敗しました')
+    }
   }
 
   const handleUpdateForm = async (form: Form) => {
+    const fields = parseFields(fieldJsonMap[form.id] ?? '[]')
+    if (!fields) return
     try {
-      const fields: FormField[] = JSON.parse(fieldJsonMap[form.id])
       const body = {
           ...form,
           fields,
@@ -130,13 +149,20 @@ export default function FormsPage() {
         body: JSON.stringify(body)
       })
       if (res.success) {
-        setForms((prev) => prev.map(f => f.id === form.id ? res.data : f))
-        setFieldJsonMap((prev) => ({
-          ...prev,
-          [form.id]: JSON.stringify(res.data.fields, null, 2)
-        }))
+        setError(null)
+        if (res.data) {
+          setForms((prev) => prev.map(f => f.id === form.id ? res.data : f))
+          setFieldJsonMap((prev) => ({
+            ...prev,
+            [form.id]: JSON.stringify(res.data.fields, null, 2)
+          }))
+        }
+      } else {
+        setError('フォームの更新に失敗しました')
       }
-    } catch { /* silent */ }
+    } catch {
+      setError('フォームの更新に失敗しました')
+    }
   }
 
   const loadReminders = useCallback(async () => {
@@ -173,6 +199,11 @@ export default function FormsPage() {
         </button>
       </div>
       <div className="container mx-auto p-6">
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded" data-testid="form-error">
+            {error}
+          </div>
+        )}
         <div className="space-y-2">
           {forms.map((form) => {
             const editDateFields = getDateFields(fieldJsonMap[form.id] ?? '[]')
@@ -233,7 +264,7 @@ export default function FormsPage() {
                 <div>
                   <label>送信時タグ付与（タグID）</label>
                   <input
-                    value={form.onSubmitTagId}
+                    value={form.onSubmitTagId ?? ''}
                     onChange={(e) =>
                       setForms((prev) =>
                         prev.map((f) =>
@@ -251,7 +282,7 @@ export default function FormsPage() {
                 <div>
                   <label>送信時シナリオ登録（シナリオID）</label>
                   <input
-                    value={form.onSubmitScenarioId}
+                    value={form.onSubmitScenarioId ?? ''}
                     onChange={(e) =>
                       setForms((prev) =>
                         prev.map((f) =>
@@ -293,7 +324,7 @@ export default function FormsPage() {
                   <div>
                     <label>リマインダ選択</label>
                     <select
-                      value={form.onSubmitReminderId}
+                      value={form.onSubmitReminderId ?? ''}
                       onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderId: e.target.value } : f))}
                       className="w-full p-2 border rounded"
                       data-testid={`edit-form-reminder-id-${form.id}`}
@@ -309,7 +340,7 @@ export default function FormsPage() {
                   <div>
                     <label>基準日として使うフィールドの選択</label>
                     <select
-                      value={form.onSubmitReminderDateField}
+                      value={form.onSubmitReminderDateField ?? ''}
                       onChange={(e) => setForms((prev) => prev.map((f) => f.id === form.id ? { ...f, onSubmitReminderDateField: e.target.value } : f))}
                       className="w-full p-2 border rounded"
                       data-testid={`edit-form-reminder-date-field-${form.id}`}
@@ -347,6 +378,7 @@ export default function FormsPage() {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
+                  value={createForm.name}
                   onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
                   data-testid="create-form-name"
                 />
@@ -355,6 +387,7 @@ export default function FormsPage() {
                 <label>説明</label>
                 <textarea
                   className="w-full p-2 border rounded"
+                  value={createForm.description}
                   onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
                   data-testid="create-form-description"
                 ></textarea>
@@ -363,6 +396,7 @@ export default function FormsPage() {
                 <label>フィールド定義（JSON形式）</label>
                 <textarea
                   className="w-full p-2 border rounded"
+                  value={fieldsJson}
                   onChange={(e) => setFieldsJson(e.target.value)}
                   data-testid="create-form-fields"
                 ></textarea>
@@ -372,6 +406,7 @@ export default function FormsPage() {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
+                  value={createForm.onSubmitTagId ?? ''}
                   onChange={(e) => setCreateForm({...createForm, onSubmitTagId: e.target.value})}
                   data-testid="create-form-tag-id"
                 />
@@ -381,6 +416,7 @@ export default function FormsPage() {
                 <input
                   type="text"
                   className="w-full p-2 border rounded"
+                  value={createForm.onSubmitScenarioId ?? ''}
                   onChange={(e) => setCreateForm({...createForm, onSubmitScenarioId: e.target.value})}
                   data-testid="create-form-scenario-id"
                 />
@@ -390,6 +426,7 @@ export default function FormsPage() {
                 <input
                   type="checkbox"
                   className="p-2 border rounded"
+                  checked={createForm.saveToMetadata}
                   onChange={(e) => setCreateForm({...createForm, saveToMetadata: e.target.checked})}
                   data-testid="create-form-save-to-metadata"
                 />

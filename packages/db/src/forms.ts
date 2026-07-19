@@ -67,6 +67,7 @@ export interface CreateFormInput {
 export async function createForm(db: D1Database, input: CreateFormInput): Promise<Form> {
   const id = crypto.randomUUID();
   const now = jstNow();
+
   await db
     .prepare(
       `INSERT INTO forms
@@ -95,6 +96,7 @@ export async function createForm(db: D1Database, input: CreateFormInput): Promis
       now,
     )
     .run();
+
   return (await getFormById(db, id))!;
 }
 

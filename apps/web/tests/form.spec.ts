@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.setItem("lh_api_key", "test-key");
   });
 
-  await page.route('**/api/reminders', async (route) => {
+  await page.route('**/api/reminders*', async (route) => {
     await route.fulfill({
       status: 200,
       json: remindersForm,
@@ -35,14 +35,17 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
 
   await page.route('**/api/forms', async (route) => {
     if (route.request().method() === 'POST') {
-      requestBody = route.request().postDataJSON()
+      const body = route.request().postDataJSON() as Record<string, unknown>
+      requestBody = body
 
       return route.fulfill({
-        status: 200,
+        status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true }),
+        body: JSON.stringify({ success: true, data: { ...body, id: 'form-new', isActive: true } }),
       })
     }
+
+    return route.fallback()
   })
   
   await page.getByText('新規作成').click()
@@ -75,6 +78,7 @@ test('フォーム作成時にリマインダ設定を保存できる', async ({
 
   await page.getByTestId('create-form-submit').click()
 
+  await expect.poll(() => requestBody).toBeTruthy()
   expect(requestBody).toMatchObject({
     name: '新フォーム',
     description: '新フォームの説明',
@@ -102,11 +106,12 @@ test('フォーム編集時にリマインダ設定を保存できる', async ({
   let requestBody: unknown
 
   await page.route('**/api/forms/form1', async (route) => {
-    requestBody = route.request().postDataJSON()
+    const body = route.request().postDataJSON() as Record<string, unknown>
+    requestBody = body
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true }),
+      body: JSON.stringify({ success: true, data: body }),
     })
   })
 
@@ -138,6 +143,7 @@ test('フォーム編集時にリマインダ設定を保存できる', async ({
 
   await page.getByTestId('edit-form-submit-form1').click()
 
+  await expect.poll(() => requestBody).toBeTruthy()
   expect(requestBody).toMatchObject({
     fields: [
       {

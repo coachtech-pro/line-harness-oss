@@ -21,7 +21,7 @@ describe('handleReminderRegistration', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  it('有効な日付の場合はリマインダを登録する', async () => {
+  it('有効な日付の場合はリマインダ登録を sideEffects に積む', async () => {
     const db = {
       prepare: vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
@@ -30,94 +30,121 @@ describe('handleReminderRegistration', () => {
         }),
       }),
     } as unknown as D1Database
-    
+
     const submissionData = {
       birthday: '2025-10-20',
     }
 
     const sideEffects: Promise<unknown>[] = []
 
-    await handleReminderRegistration({
+    handleReminderRegistration({
       db,
       form,
       submissionData,
       friendId,
       sideEffects,
     })
-    
-    expect(db.prepare).toHaveBeenCalled()
+
     expect(sideEffects).toHaveLength(1)
+    await Promise.all(sideEffects)
+    expect(db.prepare).toHaveBeenCalled()
   })
 
-  it('不正な日付の場合はスキップしてエラーログを出す', async () => {
+  it('不正な日付の場合はスキップしてエラーログを出す', () => {
     const db = { prepare: vi.fn() } as unknown as D1Database
-    
+
     const submissionData = {
       birthday: 'aaaa',
     }
-    
+
     const sideEffects: Promise<unknown>[] = []
 
-    await handleReminderRegistration({
+    handleReminderRegistration({
       db,
       form,
       submissionData,
       friendId,
       sideEffects,
     })
-    
+
     expect(db.prepare).not.toHaveBeenCalled()
+    expect(sideEffects).toHaveLength(0)
     expect(consoleErrorSpy).toHaveBeenCalled()
   })
 
-  it('空欄の場合はスキップしてエラーログを出す', async () => {
+  it('YYYY-MM-DD 以外の形式はスキップしてエラーログを出す', () => {
     const db = { prepare: vi.fn() } as unknown as D1Database
-    
+
+    const submissionData = {
+      birthday: '2025/10/20',
+    }
+
+    const sideEffects: Promise<unknown>[] = []
+
+    handleReminderRegistration({
+      db,
+      form,
+      submissionData,
+      friendId,
+      sideEffects,
+    })
+
+    expect(db.prepare).not.toHaveBeenCalled()
+    expect(sideEffects).toHaveLength(0)
+    expect(consoleErrorSpy).toHaveBeenCalled()
+  })
+
+  it('空欄の場合はスキップしてエラーログを出す', () => {
+    const db = { prepare: vi.fn() } as unknown as D1Database
+
     const submissionData = {
       birthday: '',
     }
-    
+
     const sideEffects: Promise<unknown>[] = []
 
-    await handleReminderRegistration({
+    handleReminderRegistration({
       db,
       form,
       submissionData,
       friendId,
       sideEffects,
     })
-    
+
     expect(db.prepare).not.toHaveBeenCalled()
+    expect(sideEffects).toHaveLength(0)
     expect(consoleErrorSpy).toHaveBeenCalled()
   })
 
-  it('既存レコードがある場合は上書きする', async () => {
-    const run = vi.fn()
-    const db = {
-      prepare: vi.fn().mockReturnValue({
-        bind: vi.fn().mockReturnValue({
-          first: vi.fn().mockResolvedValue({ id: 'exists' }),
-          run,
-        }),
-      }),
-    } as unknown as D1Database
+  it('既存レコードがある場合は基準日を上書きして active に戻す', async () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    const bind = vi.fn().mockReturnValue({
+      first: vi.fn().mockResolvedValue({ id: 'exists' }),
+      run,
+    })
+    const prepare = vi.fn().mockReturnValue({ bind })
+    const db = { prepare } as unknown as D1Database
 
-    
     const submissionData = {
       birthday: '2026-05-01',
     }
-    
+
     const sideEffects: Promise<unknown>[] = []
 
-    await handleReminderRegistration({
+    handleReminderRegistration({
       db,
       form,
       submissionData,
       friendId,
       sideEffects,
     })
-    
+
+    expect(sideEffects).toHaveLength(1)
+    await Promise.all(sideEffects)
+
     expect(run).toHaveBeenCalled()
-    expect(sideEffects).toHaveLength(0)
+    const updateSql = prepare.mock.calls.map(([sql]) => sql).find((sql: string) => sql.includes('UPDATE'))
+    expect(updateSql).toContain(`status = 'active'`)
+    expect(bind).toHaveBeenCalledWith('2026-05-01T00:00:00+09:00', expect.anything(), 'exists')
   })
 });
