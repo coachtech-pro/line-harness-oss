@@ -13,7 +13,7 @@ interface FriendTableProps {
   onRefresh: () => void
 }
 
-interface createTag {
+interface CreateTagForm {
   name: string
   color: string
 }
@@ -26,7 +26,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [createTagForm, setCreateTagForm] = useState(false)
-  const [createTag, setCreateTag] = useState<createTag>({ name: '', color: '' })
+  const [createTag, setCreateTag] = useState<CreateTagForm>({ name: '', color: '' })
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -75,7 +75,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
   }
 
   const handleCreateTag = async (friendId: string) => {
-    if (!createTag.name) return
+    if (!createTag.name || loading) return
     setLoading(true)
     setError('')
     try {
@@ -84,9 +84,16 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
         color: createTag.color || undefined,
         lineAccountId: selectedAccountId || undefined,
       })
-      if (res.success) {
-        const newTagId = res.data.id
-        await api.friends.addTag(friendId, newTagId)
+      if (!res.success) {
+        setError('タグの作成に失敗しました')
+        return
+      }
+      try {
+        await api.friends.addTag(friendId, res.data.id)
+      } catch {
+        setError('タグは作成されましたが、友だちへの付与に失敗しました')
+        onRefresh()
+        return
       }
       setCreateTagForm(false)
       setCreateTag({ name: '', color: '' })
@@ -277,6 +284,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                       type="text"
                                       id={`tag-name-${friend.id}`}
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                      value={createTag.name}
                                       onChange={(e) => setCreateTag({ ...createTag, name: e.target.value })}
                                     />
                                     <label htmlFor={`tag-color-${friend.id}`} className="text-xs text-gray-500">色</label>
@@ -284,11 +292,13 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                                       type="text"
                                       id={`tag-color-${friend.id}`}
                                       className="px-2 py-1 border border-gray-300 rounded text-xs"
+                                      value={createTag.color}
                                       onChange={(e) => setCreateTag({ ...createTag, color: e.target.value })}
                                     />
                                     <button
                                       onClick={() => handleCreateTag(friend.id)}
-                                      className="px-3 py-1 text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 transition-colors"
+                                      disabled={!createTag.name || loading}
+                                      className="px-3 py-1 text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-50 transition-colors"
                                     >
                                       保存
                                     </button>
@@ -303,7 +313,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                               </div>
                             </div>
                           )}
-                          <div className="space-y-2">
+                          {!isAddingTag && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setAddingTagForFriend(friend.id); if (availableTags.length === 0) setCreateTagForm(true); }}
                               className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
@@ -313,7 +323,7 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                               </svg>
                               タグを追加
                             </button>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </td>

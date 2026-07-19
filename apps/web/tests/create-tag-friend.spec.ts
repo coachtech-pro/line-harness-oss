@@ -25,7 +25,7 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route("**/api/tags", async (route) => {
+  await page.route("**/api/tags*", async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
         status: 200,
