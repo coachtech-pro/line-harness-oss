@@ -190,10 +190,19 @@ export default function RemindersPage() {
 
   const loadAllFriends = useCallback(async () => {
     try {
-      const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined })
-      if (friendRes.success) {
-        setAllFriends((friendRes.data as unknown as { items: FriendItem[] }).items)
+      // サーバ側はデフォルト50件のページネーションのため、全ページを取得する
+      const limit = 100
+      let offset = 0
+      const items: FriendItem[] = []
+      for (;;) {
+        const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined, limit, offset })
+        if (!friendRes.success) break
+        const data = friendRes.data as unknown as { items: FriendItem[]; hasNextPage?: boolean }
+        items.push(...data.items)
+        if (!data.hasNextPage) break
+        offset += limit
       }
+      setAllFriends(items)
     } catch { /* silent */ }
   }, [selectedAccountId])
 
@@ -217,6 +226,9 @@ export default function RemindersPage() {
     setExpandedData(null)
     setShowStepForm(false)
     setStepFormError('')
+    setShowFriendForm(false)
+    setFriendFormError('')
+    setResult(null)
     loadDetail(id)
     loadTags()
     loadAllFriends()
@@ -328,42 +340,39 @@ export default function RemindersPage() {
     setFriendFormError('')
     try {
       const filteredTagFriends = allFriends.filter((friend) => friend.tags.some((tag) => tag.id === friendForm.tagId))
-      
-      const filteredTargetDateFriends = expandedData?.friends.filter((friend) => friend.targetDate === friendForm.targetDate + ':00+09:00') ?? []
 
-      const skippedFriends = new Set(
-        filteredTargetDateFriends.filter((f) => f.status !== 'cancelled').map((f) => f.friendId)
+      // 基準日にかかわらず、キャンセル以外で登録済みの友だちはスキップ（重複登録しない）
+      const enrolledFriendIds = new Set(
+        (expandedData?.friends ?? []).filter((f) => f.status !== 'cancelled').map((f) => f.friendId)
       )
 
-      const newFriends = filteredTagFriends.filter((friend) =>
-        !skippedFriends.has(friend.id)
-      )
+      const newFriends = filteredTagFriends.filter((friend) => !enrolledFriendIds.has(friend.id))
 
-      const skipCount = skippedFriends.size
+      const skipCount = filteredTagFriends.length - newFriends.length
 
       let successCount = 0
 
-      for (const friend of newFriends) {
-        const res = await api.reminders.addFriend(expandedId, friend.id, {
-          targetDate: friendForm.targetDate + ':00+09:00',
-        })
-        if (res.success) {
-          successCount++
-        } else {
-          setFriendFormError(res.error)
-          return
+      try {
+        for (const friend of newFriends) {
+          const res = await api.reminders.addFriend(expandedId, friend.id, {
+            targetDate: friendForm.targetDate + ':00+09:00',
+          })
+          if (res.success) {
+            successCount++
+          } else {
+            setFriendFormError(res.error)
+            return
+          }
         }
+      } finally {
+        // 途中で失敗しても、登録済みの分を一覧に反映する
+        if (successCount > 0) loadDetail(expandedId)
       }
 
       setShowFriendForm(false)
       setFriendForm({ targetDate: '', tagId: '' })
-      loadDetail(expandedId)
 
-      setResult((prev) => ({
-        ...prev,
-        newCount: successCount,
-        skipCount: skipCount,
-      }))
+      setResult({ newCount: successCount, skipCount })
     } catch {
       setFriendFormError('友だちの登録に失敗しました')
     } finally {
@@ -671,7 +680,7 @@ export default function RemindersPage() {
                               </p>
                             </div>
                           )}
-                        {(expandedData.friends.length === 0) || (!expandedData.friends.some(friend => friend.status === 'active')) ? (
+                        {!expandedData.friends.some(friend => friend.status === 'active') ? (
                           <p className="text-xs text-gray-400 py-4 text-center">友だちがいません。「タグから一括登録」から登録してください。</p>
                         ) : (
                           <div>
@@ -712,6 +721,7 @@ export default function RemindersPage() {
                                   onChange={(e) => setFriendForm({ ...friendForm, tagId: e.target.value })}
                                   data-testid="tag-select"
                                 >
+                                  <option value="">選択してください</option>
                                   {tags.map((tag) => (
                                     <option key={tag.id} value={tag.id}>
                                       {tag.name}

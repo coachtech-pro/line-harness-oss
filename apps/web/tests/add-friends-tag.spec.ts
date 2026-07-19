@@ -76,28 +76,38 @@ test('対象タグの全友だちを登録し、登録済みの友だちはス�
 
   await page.getByTestId('add-friend-button').click()
 
-  await page.waitForTimeout(1000)
-  
-  expect(requests).toHaveLength(3)
+  // 登録結果の表示を待ってからリクエスト内容を検証する
+  await expect(page.getByText('新規2件 / スキップ2件')).toBeVisible()
 
-  expect(requests[0].body.targetDate).toBe('2026-01-01T10:00:00+09:00')
-  expect(requests[1].body.targetDate).toBe('2026-01-01T10:00:00+09:00')
-  expect(requests[2].body.targetDate).toBe('2026-01-01T10:00:00+09:00')
+  // タグ1の友だちのうち、登録済み (user-4: completed) と別の基準日で登録済み (user-2: active) はスキップされる
+  // 解除済み (user-5: cancelled) は再登録できる
+  expect(requests).toHaveLength(2)
 
-  expect(requests[0].url).toContain('reminder-1')
-  expect(requests[1].url).toContain('reminder-1')
-  expect(requests[2].url).toContain('reminder-1')
+  for (const req of requests) {
+    expect(req.body.targetDate).toBe('2026-01-01T10:00:00+09:00')
+    expect(req.url).toContain('reminder-1')
+  }
 
   const urls = requests.map(r => r.url)
 
   expect(urls.some(url => url.includes('user-1'))).toBe(true)
-  expect(urls.some(url => url.includes('user-2'))).toBe(true)
   expect(urls.some(url => url.includes('user-5'))).toBe(true)
 
+  expect(urls.some(url => url.includes('user-2'))).toBe(false)
   expect(urls.some(url => url.includes('user-3'))).toBe(false)
   expect(urls.some(url => url.includes('user-4'))).toBe(false)
+});
 
-  await expect(page.getByText('新規3件 / スキップ2件')).toBeVisible()
+test('タグ未選択のまま登録するとエラーが表示される', async ({ page }) => {
+  await page.getByRole('button', { name: '+ タグから一括登録' }).click()
+
+  await expect(page.getByTestId('tag-select')).toHaveValue('')
+
+  await page.getByTestId('target-date-input').fill('2026-01-01T10:00')
+
+  await page.getByTestId('add-friend-button').click()
+
+  await expect(page.getByText('タグを選択してください')).toBeVisible()
 });
 
 test('現在登録されている友だち一覧が基準日と共に表示され、解除もできる', async ({ page }) => {
@@ -124,9 +134,10 @@ test('現在登録されている友だち一覧が基準日と共に表示さ�
   await expect(page.getByText('基準日: 2026/01/01 10:00')).toHaveCount(1)
 
   await page.getByTestId('delete-friend-button-user-3').click()
-  
-  expect(deleteCalled).toBe(true)
-  
+
+  await expect.poll(() => deleteCalled).toBe(true)
+
+
   reminderFriendData = {
     ...reminderFriendData,
     data: {
