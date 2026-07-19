@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useState } from 'react'
-import type { Tag } from '@line-crm/shared'
+import type { Tag, Reminder, FriendReminder } from '@line-crm/shared'
 import type { FriendWithTags } from '@/lib/api'
 import { api } from '@/lib/api'
 import TagBadge from './tag-badge'
@@ -11,6 +11,12 @@ interface FriendTableProps {
   friends: FriendWithTags[]
   allTags: Tag[]
   onRefresh: () => void
+  reminders: Reminder[]
+}
+
+interface AddFriendReminder {
+  reminderId: string
+  targetDate: string
 }
 
 interface CreateTagForm {
@@ -18,23 +24,32 @@ interface CreateTagForm {
   color: string
 }
 
-export default function FriendTable({ friends, allTags, onRefresh }: FriendTableProps) {
+export default function FriendTable({ friends, allTags, onRefresh, reminders }: FriendTableProps) {
   const { selectedAccountId } = useAccount()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingTagForFriend, setAddingTagForFriend] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [friendReminders, setFriendReminders] = useState<FriendReminder[]>([])
+  const [addFriendReminder, setAddFriendReminder] = useState<AddFriendReminder>({
+    reminderId: '',
+    targetDate: ''
+  })
   const [createTagForm, setCreateTagForm] = useState(false)
   const [createTag, setCreateTag] = useState<CreateTagForm>({ name: '', color: '' })
 
   const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id)
+    const expanding = expandedId !== id
+    setExpandedId(expanding ? id : null)
     setAddingTagForFriend(null)
     setSelectedTagId('')
     setError('')
+    setFriendReminders([])
+    setAddFriendReminder({ reminderId: '', targetDate: '' })
     setCreateTagForm(false)
     setCreateTag({ name: '', color: '' })
+    if (expanding) loadFriendReminder(id)
   }
 
   const handleAddTag = async (friendId: string) => {
@@ -72,6 +87,61 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
       month: '2-digit',
       day: '2-digit',
     })
+  }
+
+  const loadFriendReminder = async (friendId: string) => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.friends.listReminders(friendId)
+      if (res.success) {
+        setFriendReminders(res.data)
+      } else {
+        setError(res.error)
+      }
+    } catch {
+      setError('リマインダーの取得に失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddFriendReminder = async (friendId: string) => {
+    if (!addFriendReminder.reminderId || !addFriendReminder.targetDate) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.reminders.addFriend(addFriendReminder.reminderId, friendId, {
+        targetDate: addFriendReminder.targetDate + ':00+09:00',
+      })
+      if (res.success) {
+        setAddFriendReminder({ reminderId: '', targetDate: '' })
+        await loadFriendReminder(friendId)
+      } else {
+        setError(res.error)
+      }
+    } catch {
+      setError('登録に失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteFriendReminder = async (friendReminderId: string, friendId: string) => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.reminders.deleteFriend(friendReminderId)
+      if (res.success) {
+        await loadFriendReminder(friendId)
+      } else {
+        setError(res.error)
+      }
+    } catch {
+      setError('登録解除に失敗しました')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCreateTag = async (friendId: string) => {
@@ -323,6 +393,81 @@ export default function FriendTable({ friends, allTags, onRefresh }: FriendTable
                               </svg>
                               タグを追加
                             </button>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 mb-1">リマインダ管理</p>
+                          <div className="flex items-center gap-3">
+                            <select
+                              className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                              value={addFriendReminder.reminderId}
+                              onChange={(e) => setAddFriendReminder({ ...addFriendReminder, reminderId: e.target.value })}
+                              data-testid="reminders-select"
+                            >
+                              <option value="">リマインダを選択</option>
+                              {reminders.map((reminder) => (
+                                <option key={reminder.id} value={reminder.id}>
+                                  {reminder.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div>
+                              <label className="text-xs text-gray-500">基準日</label>
+                              <input
+                                type="datetime-local"
+                                className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                value={addFriendReminder.targetDate}
+                                onChange={(e) => setAddFriendReminder({ ...addFriendReminder, targetDate: e.target.value })}
+                                data-testid="target-date-input"
+                              />
+                            </div>
+                            <button
+                              className="px-2 py-1 text-xs bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50 transition-colors"
+                              onClick={() => handleAddFriendReminder(friend.id)}
+                              disabled={!addFriendReminder.reminderId || !addFriendReminder.targetDate || loading}
+                              data-testid="add-reminder-button"
+                            >
+                              登録
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">登録中のリマインダ一覧</p>
+                          {(friendReminders.length === 0) ? (
+                            <p className="text-xs text-gray-500">登録中のリマインダはありません</p>
+                          ) : (
+                            <table className="space-y-2" data-testid="registered-reminders-table">
+                              <thead>
+                                <tr className="font-semibold text-xs text-gray-500 text-left">
+                                  <th className="pr-4 py-1">リマインダ名</th>
+                                  <th className="px-4 py-1">基準日</th>
+                                  <th className="px-4 py-1">状態</th>
+                                  <th className="px-4 py-1"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                              {friendReminders.map((friendReminder) => (
+                                <tr key={friendReminder.id} className="text-xs text-gray-500 text-left">
+                                  <td className="pr-4 py-1">{reminders.find((reminder) => reminder.id === friendReminder.reminderId)?.name}</td>
+                                  <td className="px-4 py-1">{formatDate(friendReminder.targetDate)}</td>
+                                  <td className="px-4 py-1" data-testid={`friend-reminder-status-${friendReminder.id}`}>{friendReminder.status === 'active' ? '配信中' : friendReminder.status === 'completed' ? '完了' : '解除済み'}</td>
+                                  <td className="px-4 py-1" data-testid={`friend-reminder-cancel-cell-${friendReminder.id}`}>
+                                    {friendReminder.status === 'active' && (
+                                      <button
+                                        onClick={() => handleDeleteFriendReminder(friendReminder.id, friend.id)}
+                                        disabled={loading}
+                                        className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
+                                        data-testid={`delete-friend-reminder-button-${friendReminder.id}`}
+                                      >
+                                        解除
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                              </tbody>
+                            </table>
                           )}
                         </div>
                       </div>

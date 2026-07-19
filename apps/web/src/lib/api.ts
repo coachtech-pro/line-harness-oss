@@ -113,6 +113,8 @@ export const api = {
       fetchApi<ApiResponse<null>>(`/api/friends/${friendId}/tags/${tagId}`, {
         method: 'DELETE',
       }),
+    listReminders: (friendId: string) =>
+      fetchApi<ApiResponse<FriendReminder[]>>(`/api/friends/${friendId}/reminders`),
   },
   tags: {
     list: (params?: { accountId?: string }) => {

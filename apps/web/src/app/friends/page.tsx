@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { Tag } from '@line-crm/shared'
+import type { Tag, Reminder } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import type { FriendWithTags } from '@/lib/api'
 import Header from '@/components/layout/header'
@@ -40,6 +40,7 @@ export default function FriendsPage() {
   const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reminders, setReminders] = useState<Reminder[]>([])
 
   const loadTags = useCallback(async () => {
     try {
@@ -76,6 +77,19 @@ export default function FriendsPage() {
     }
   }, [page, selectedTagId, selectedAccountId])
 
+  const loadReminders = useCallback(async () => {
+    try {
+      const res = await api.reminders.list({ accountId: selectedAccountId || undefined })
+      if (res.success) {
+        setReminders(res.data)
+      } else {
+        setError(res.error)
+      }
+    } catch {
+      setError('リマインダーの読み込みに失敗しました。もう一度お試しください。')
+    }
+  }, [selectedAccountId])
+
   useEffect(() => {
     loadTags()
   }, [loadTags])
@@ -87,6 +101,10 @@ export default function FriendsPage() {
   useEffect(() => {
     loadFriends()
   }, [loadFriends])
+
+  useEffect(() => {
+    loadReminders()
+  }, [loadReminders])
 
   const handleTagFilter = (tagId: string) => {
     setSelectedTagId(tagId)
@@ -144,6 +162,7 @@ export default function FriendsPage() {
           friends={friends}
           allTags={allTags}
           onRefresh={loadFriends}
+          reminders={reminders}
         />
       )}
 
