@@ -9,7 +9,7 @@ import {
   getReminderFriends,
   createReminderStep,
   deleteReminderStep,
-  enrollFriendInReminder,
+  upsertFriendReminder,
   getFriendReminders,
   cancelFriendReminder,
 } from '@line-crm/db';
@@ -170,7 +170,8 @@ reminders.post('/api/reminders/:id/enroll/:friendId', async (c) => {
     const friendId = c.req.param('friendId');
     const body = await c.req.json<{ targetDate: string }>();
     if (!body.targetDate) return c.json({ success: false, error: 'targetDate is required' }, 400);
-    const enrollment = await enrollFriendInReminder(c.env.DB, { friendId, reminderId, targetDate: body.targetDate });
+    // 同一友だち×同一リマインダの重複行を作らない (既存登録は基準日を更新して active に戻す)
+    const enrollment = await upsertFriendReminder(c.env.DB, { friendId, reminderId, targetDate: body.targetDate });
     return c.json({
       success: true,
       data: { id: enrollment.id, friendId: enrollment.friend_id, reminderId: enrollment.reminder_id, targetDate: enrollment.target_date, status: enrollment.status },

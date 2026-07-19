@@ -112,15 +112,15 @@ export async function enrollFriendInReminder(
 export async function upsertFriendReminder(
   db: D1Database,
   input: { friendId: string; reminderId: string; targetDate: string },
-): Promise<void> {
+): Promise<FriendReminderRow> {
   const existing = await db.prepare(`SELECT id FROM friend_reminders WHERE friend_id = ? AND reminder_id = ?`)
     .bind(input.friendId, input.reminderId).first<{ id: string }>();
   if (existing) {
     await db.prepare(`UPDATE friend_reminders SET target_date = ?, status = 'active', updated_at = ? WHERE id = ?`)
       .bind(input.targetDate, jstNow(), existing.id).run();
-  } else {
-    await enrollFriendInReminder(db, input);
+    return (await db.prepare(`SELECT * FROM friend_reminders WHERE id = ?`).bind(existing.id).first<FriendReminderRow>())!;
   }
+  return enrollFriendInReminder(db, input);
 }
 
 export async function getFriendReminders(db: D1Database, friendId: string): Promise<FriendReminderRow[]> {

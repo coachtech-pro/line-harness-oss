@@ -76,7 +76,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
 }
 
 export type FriendListParams = {
-  offset?: string
+  offset?: string | number
   limit?: string | number
   tagId?: string
   accountId?: string
