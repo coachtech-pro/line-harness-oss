@@ -208,12 +208,12 @@ export default function RemindersPage() {
 
   const loadTags = useCallback(async () => {
     try {
-      const tagRes = await api.tags.list()
+      const tagRes = await api.tags.list({ accountId: selectedAccountId || undefined })
       if (tagRes.success) {
         setTags(tagRes.data)
       }
     } catch { /* silent */ }
-  }, [])
+  }, [selectedAccountId])
 
   const handleExpand = (id: string) => {
     if (expandedId === id) {
