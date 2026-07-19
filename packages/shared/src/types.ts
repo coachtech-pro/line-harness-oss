@@ -42,6 +42,8 @@ export interface Tag {
   name: string;
   /** 表示色 (HEX: #RRGGBB) */
   color: string;
+  /** 所属する LINE アカウントID (null = 全アカウント共通) */
+  lineAccountId?: string | null;
   /** 作成日時 (ISO 8601) */
   createdAt: string;
 }

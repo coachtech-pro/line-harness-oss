@@ -117,9 +117,11 @@ export const api = {
       fetchApi<ApiResponse<FriendReminder[]>>(`/api/friends/${friendId}/reminders`),
   },
   tags: {
-    list: () =>
-      fetchApi<ApiResponse<Tag[]>>('/api/tags'),
-    create: (data: { name: string; color: string }) =>
+    list: (params?: { accountId?: string }) => {
+      const query = params?.accountId ? '?lineAccountId=' + params.accountId : ''
+      return fetchApi<ApiResponse<Tag[]>>('/api/tags' + query)
+    },
+    create: (data: { name: string; color?: string; lineAccountId?: string | null }) =>
       fetchApi<ApiResponse<Tag>>('/api/tags', {
         method: 'POST',
         body: JSON.stringify(data),
