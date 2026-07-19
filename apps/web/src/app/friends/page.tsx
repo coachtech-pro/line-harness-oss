@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { Tag } from '@line-crm/shared'
+import type { Tag, Reminder } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import type { FriendWithTags } from '@/lib/api'
 import Header from '@/components/layout/header'
@@ -29,11 +29,6 @@ const ccPrompts = [
 ]
 
 const PAGE_SIZE = 20
-
-export interface Reminder {
-  id: string
-  name: string
-}
 
 export default function FriendsPage() {
   const { selectedAccountId } = useAccount()
@@ -83,8 +78,6 @@ export default function FriendsPage() {
   }, [page, selectedTagId, selectedAccountId])
 
   const loadReminders = useCallback(async () => {
-    setLoading(true)
-    setError('')
     try {
       const res = await api.reminders.list({ accountId: selectedAccountId || undefined })
       if (res.success) {
@@ -94,8 +87,6 @@ export default function FriendsPage() {
       }
     } catch {
       setError('リマインダーの読み込みに失敗しました。もう一度お試しください。')
-    } finally {
-      setLoading(false)
     }
   }, [selectedAccountId])
 
@@ -110,7 +101,7 @@ export default function FriendsPage() {
   useEffect(() => {
     loadFriends()
   }, [loadFriends])
-  
+
   useEffect(() => {
     loadReminders()
   }, [loadReminders])

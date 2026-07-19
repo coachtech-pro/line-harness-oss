@@ -39,6 +39,14 @@ export const friendReminders = {
   ],
 };
 
+export const enrolledFriendReminder = {
+  id: "friend-reminder-4",
+  friendId: "friend-1",
+  reminderId: "reminder-2",
+  targetDate: "2026-06-21T00:00:00+09:00",
+  status: "active",
+};
+
 export const friends = {
   success: true,
   data: {
