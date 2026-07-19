@@ -314,6 +314,8 @@ export interface Form {
   saveToMetadata: boolean
   isActive: boolean
   submitCount: number
+  onSubmitReminderId: string | null
+  onSubmitReminderDateField: string | null
   createdAt: string
   updatedAt: string
 }
@@ -327,6 +329,8 @@ export interface CreateFormInput {
   onSubmitMessageType?: 'text' | 'flex' | null
   onSubmitMessageContent?: string | null
   saveToMetadata?: boolean
+  onSubmitReminderId?: string | null
+  onSubmitReminderDateField?: string | null
 }
 
 export interface UpdateFormInput {
@@ -339,6 +343,8 @@ export interface UpdateFormInput {
   onSubmitMessageContent?: string | null
   saveToMetadata?: boolean
   isActive?: boolean
+  onSubmitReminderId?: string | null
+  onSubmitReminderDateField?: string | null
 }
 
 export interface FormSubmission {

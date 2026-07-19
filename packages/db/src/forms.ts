@@ -15,6 +15,8 @@ export interface Form {
   on_submit_webhook_url: string | null;
   on_submit_webhook_headers: string | null;
   on_submit_webhook_fail_message: string | null;
+  on_submit_reminder_id: string | null;
+  on_submit_reminder_date_field: string | null;
   save_to_metadata: number;
   is_active: number;
   submit_count: number;
@@ -58,6 +60,8 @@ export interface CreateFormInput {
   onSubmitWebhookHeaders?: string | null;
   onSubmitWebhookFailMessage?: string | null;
   saveToMetadata?: boolean;
+  onSubmitReminderId?: string | null;
+  onSubmitReminderDateField?: string | null;
 }
 
 export async function createForm(db: D1Database, input: CreateFormInput): Promise<Form> {
@@ -70,8 +74,8 @@ export async function createForm(db: D1Database, input: CreateFormInput): Promis
          (id, name, description, fields, on_submit_tag_id, on_submit_scenario_id,
           on_submit_message_type, on_submit_message_content,
           on_submit_webhook_url, on_submit_webhook_headers, on_submit_webhook_fail_message,
-          save_to_metadata, is_active, submit_count, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)`,
+          save_to_metadata, is_active, submit_count, on_submit_reminder_id, on_submit_reminder_date_field, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?)`,
     )
     .bind(
       id,
@@ -86,6 +90,8 @@ export async function createForm(db: D1Database, input: CreateFormInput): Promis
       input.onSubmitWebhookHeaders ?? null,
       input.onSubmitWebhookFailMessage ?? null,
       input.saveToMetadata !== false ? 1 : 0,
+      input.onSubmitReminderId ?? null,
+      input.onSubmitReminderDateField ?? null,
       now,
       now,
     )
@@ -107,6 +113,8 @@ export interface UpdateFormInput {
   onSubmitWebhookFailMessage?: string | null;
   saveToMetadata?: boolean;
   isActive?: boolean;
+  onSubmitReminderId?: string | null;
+  onSubmitReminderDateField?: string | null;
 }
 
 export async function updateForm(
@@ -134,6 +142,8 @@ export async function updateForm(
            on_submit_webhook_fail_message = ?,
            save_to_metadata = ?,
            is_active = ?,
+           on_submit_reminder_id = ?,
+           on_submit_reminder_date_field = ?,
            updated_at = ?
        WHERE id = ?`,
     )
@@ -164,6 +174,12 @@ export async function updateForm(
         ? (input.saveToMetadata !== false ? 1 : 0)
         : existing.save_to_metadata,
       'isActive' in input ? (input.isActive ? 1 : 0) : existing.is_active,
+      'onSubmitReminderId' in input
+        ? (input.onSubmitReminderId ?? null)
+        : existing.on_submit_reminder_id,
+      'onSubmitReminderDateField' in input
+        ? (input.onSubmitReminderDateField ?? null)
+        : existing.on_submit_reminder_date_field,
       now,
       id,
     )
