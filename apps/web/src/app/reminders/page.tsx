@@ -24,8 +24,29 @@ interface ReminderStep {
   createdAt: string
 }
 
-interface ReminderWithSteps extends Reminder {
+interface ReminderFriend {
+  id: string
+  friendId: string
+  reminderId: string
+  targetDate: string
+  status: string
+  createdAt: string
+}
+
+interface ReminderWithStepsAndFriends extends Reminder {
   steps: ReminderStep[]
+  friends: ReminderFriend[]
+}
+
+interface Tag {
+  id: string
+  name: string
+}
+
+interface FriendItem {
+  id: string
+  displayName: string
+  tags: Tag[]
 }
 
 interface CreateFormState {
@@ -37,6 +58,11 @@ interface StepFormState {
   offsetMinutes: number
   messageType: string
   messageContent: string
+}
+
+interface FriendFormState {
+  tagId: string
+  targetDate: string
 }
 
 function formatOffset(minutes: number): string {
@@ -95,7 +121,7 @@ export default function RemindersPage() {
 
   // Expanded card state
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [expandedData, setExpandedData] = useState<ReminderWithSteps | null>(null)
+  const [expandedData, setExpandedData] = useState<ReminderWithStepsAndFriends | null>(null)
   const [expandLoading, setExpandLoading] = useState(false)
 
   // Step form state
@@ -107,6 +133,23 @@ export default function RemindersPage() {
   })
   const [stepSaving, setStepSaving] = useState(false)
   const [stepFormError, setStepFormError] = useState('')
+
+  // Friend form state
+  const [showFriendForm, setShowFriendForm] = useState(false)
+  const [friendForm, setFriendForm] = useState<FriendFormState>({
+    tagId: '',
+    targetDate: '',
+  })
+  const [friendSaving, setFriendSaving] = useState(false)
+  const [friendFormError, setFriendFormError] = useState('')
+
+  const [allFriends, setAllFriends] = useState<FriendItem[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
+
+  const [result, setResult] = useState<{
+    newCount: number
+    skipCount: number
+  } | null>(null)
 
   const loadReminders = useCallback(async () => {
     setLoading(true)
@@ -145,6 +188,33 @@ export default function RemindersPage() {
     }
   }, [])
 
+  const loadAllFriends = useCallback(async () => {
+    try {
+      // サーバ側はデフォルト50件のページネーションのため、全ページを取得する
+      const limit = 100
+      let offset = 0
+      const items: FriendItem[] = []
+      for (;;) {
+        const friendRes = await api.friends.list({ accountId: selectedAccountId || undefined, limit, offset })
+        if (!friendRes.success) break
+        const data = friendRes.data as unknown as { items: FriendItem[]; hasNextPage?: boolean }
+        items.push(...data.items)
+        if (!data.hasNextPage) break
+        offset += limit
+      }
+      setAllFriends(items)
+    } catch { /* silent */ }
+  }, [selectedAccountId])
+
+  const loadTags = useCallback(async () => {
+    try {
+      const tagRes = await api.tags.list()
+      if (tagRes.success) {
+        setTags(tagRes.data)
+      }
+    } catch { /* silent */ }
+  }, [])
+
   const handleExpand = (id: string) => {
     if (expandedId === id) {
       setExpandedId(null)
@@ -156,7 +226,12 @@ export default function RemindersPage() {
     setExpandedData(null)
     setShowStepForm(false)
     setStepFormError('')
+    setShowFriendForm(false)
+    setFriendFormError('')
+    setResult(null)
     loadDetail(id)
+    loadTags()
+    loadAllFriends()
   }
 
   const handleCreate = async () => {
@@ -248,6 +323,71 @@ export default function RemindersPage() {
       loadDetail(expandedId)
     } catch {
       setError('ステップの削除に失敗しました')
+    }
+  }
+
+  const handleAddFriend = async () => {
+    if (!expandedId) return
+    if (!friendForm.tagId) {
+      setFriendFormError('タグを選択してください')
+      return
+    }
+    if (!friendForm.targetDate) {
+      setFriendFormError('基準日を入力してください')
+      return
+    }
+    setFriendSaving(true)
+    setFriendFormError('')
+    try {
+      const filteredTagFriends = allFriends.filter((friend) => friend.tags.some((tag) => tag.id === friendForm.tagId))
+
+      // 基準日にかかわらず、キャンセル以外で登録済みの友だちはスキップ（重複登録しない）
+      const enrolledFriendIds = new Set(
+        (expandedData?.friends ?? []).filter((f) => f.status !== 'cancelled').map((f) => f.friendId)
+      )
+
+      const newFriends = filteredTagFriends.filter((friend) => !enrolledFriendIds.has(friend.id))
+
+      const skipCount = filteredTagFriends.length - newFriends.length
+
+      let successCount = 0
+
+      try {
+        for (const friend of newFriends) {
+          const res = await api.reminders.addFriend(expandedId, friend.id, {
+            targetDate: friendForm.targetDate + ':00+09:00',
+          })
+          if (res.success) {
+            successCount++
+          } else {
+            setFriendFormError(res.error)
+            return
+          }
+        }
+      } finally {
+        // 途中で失敗しても、登録済みの分を一覧に反映する
+        if (successCount > 0) loadDetail(expandedId)
+      }
+
+      setShowFriendForm(false)
+      setFriendForm({ targetDate: '', tagId: '' })
+
+      setResult({ newCount: successCount, skipCount })
+    } catch {
+      setFriendFormError('友だちの登録に失敗しました')
+    } finally {
+      setFriendSaving(false)
+    }
+  }
+
+  const handleDeleteFriend = async (friendReminderId: string) => {
+    if (!expandedId) return
+    if (!confirm('この友だちを解除してもよいですか？')) return
+    try {
+      await api.reminders.deleteFriend(friendReminderId)
+      loadDetail(expandedId)
+    } catch {
+      setError('友だちの解除に失敗しました')
     }
   }
 
@@ -514,6 +654,106 @@ export default function RemindersPage() {
                                 </button>
                                 <button
                                   onClick={() => { setShowStepForm(false); setStepFormError('') }}
+                                  className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                >
+                                  キャンセル
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-semibold text-gray-700">現在登録されている友だち一覧</h4>
+                            <button
+                              onClick={() => { setShowFriendForm(true); setFriendFormError('') }}
+                              className="px-3 py-1 min-h-[44px] text-xs font-medium text-white rounded-md transition-opacity hover:opacity-90"
+                              style={{ backgroundColor: '#06C755' }}
+                            >
+                              + タグから一括登録
+                            </button>
+                          </div>
+                          {result && (
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                              <p className="text-xs text-gray-600">
+                                新規{result.newCount}件 / スキップ{result.skipCount}件
+                              </p>
+                            </div>
+                          )}
+                        {!expandedData.friends.some(friend => friend.status === 'active') ? (
+                          <p className="text-xs text-gray-400 py-4 text-center">友だちがいません。「タグから一括登録」から登録してください。</p>
+                        ) : (
+                          <div>
+                            {expandedData.friends.filter(friend => friend.status === 'active')
+                              .map((friend) => (
+                                <div
+                                  key={friend.id}
+                                  className="flex justify-between bg-gray-50 rounded-lg p-3 border border-gray-100"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-4">
+                                      <p className="text-xs text-gray-600">名前: {allFriends.find((f) => f.id === friend.friendId)?.displayName}</p>
+                                      <p className="text-xs text-gray-600">基準日: {new Date(friend.targetDate).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFriend(friend.id)}
+                                    className="ml-2 shrink-0 min-w-[44px] text-xs text-red-400 hover:text-red-600 transition-colors"
+                                    data-testid={`delete-friend-button-${friend.friendId}`}
+                                  >
+                                    解除
+                                  </button>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                        </div>
+                        {showFriendForm && (
+                          <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+                            <h5 className="text-xs font-semibold text-gray-700 mb-3">タグから一括登録</h5>
+                            <div className="space-y-3 max-w-lg">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">タグ<span className="text-red-500">*</span></label>
+                                <select
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                                  value={friendForm.tagId}
+                                  onChange={(e) => setFriendForm({ ...friendForm, tagId: e.target.value })}
+                                  data-testid="tag-select"
+                                >
+                                  <option value="">選択してください</option>
+                                  {tags.map((tag) => (
+                                    <option key={tag.id} value={tag.id}>
+                                      {tag.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">基準日<span className="text-red-500">*</span></label>
+                                <input
+                                  type="datetime-local"
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  value={friendForm.targetDate}
+                                  onChange={(e) => setFriendForm({ ...friendForm, targetDate: e.target.value })}
+                                  data-testid="target-date-input"
+                                />
+                              </div>
+
+                              {friendFormError && <p className="text-xs text-red-600">{friendFormError}</p>}
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleAddFriend}
+                                  disabled={friendSaving}
+                                  className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
+                                  style={{ backgroundColor: '#06C755' }}
+                                  data-testid="add-friend-button"
+                                >
+                                  {friendSaving ? '登録中...' : '登録'}
+                                </button>
+                                <button
+                                  onClick={() => { setShowFriendForm(false); setFriendFormError('') }}
                                   className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                                 >
                                   キャンセル
